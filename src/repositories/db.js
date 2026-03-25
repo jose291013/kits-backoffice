@@ -33,6 +33,7 @@ db.serialize(() => {
       q3_height TEXT,
       q4_width TEXT,
       presserso_id_number TEXT,
+      source_hash TEXT,
       last_sync_status TEXT,
       last_sync_message TEXT,
       FOREIGN KEY (kit_id) REFERENCES kits(id)
@@ -48,6 +49,25 @@ db.serialize(() => {
       summary_json TEXT
     )
   `);
+
+  db.all(`PRAGMA table_info(kit_components)`, [], (err, columns) => {
+    if (err) {
+      console.error("Erreur PRAGMA kit_components:", err.message);
+      return;
+    }
+
+    const columnNames = columns.map(col => col.name);
+
+    if (!columnNames.includes("source_hash")) {
+      db.run(`ALTER TABLE kit_components ADD COLUMN source_hash TEXT`, alterErr => {
+        if (alterErr) {
+          console.error("Erreur ajout colonne source_hash:", alterErr.message);
+        } else {
+          console.log("Colonne source_hash ajoutée à kit_components");
+        }
+      });
+    }
+  });
 });
 
 module.exports = db;

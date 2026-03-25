@@ -5,6 +5,7 @@ const kitRoutes = require("./routes/kitRoutes");
 const importRoutes = require("./routes/importRoutes");
 const presseroRoutes = require("./routes/presseroRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const publicRoutes = require("./routes/publicRoutes");
 const errorHandler = require("./middlewares/errorHandler");
 
 const app = express();
@@ -21,6 +22,7 @@ app.use("/api/kits", kitRoutes);
 app.use("/api/import", importRoutes);
 app.use("/api/pressero", presseroRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/public", publicRoutes);
 
 app.use(errorHandler);
 
