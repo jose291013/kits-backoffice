@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const fs = require("fs");
 
 const kitRoutes = require("./routes/kitRoutes");
 const importRoutes = require("./routes/importRoutes");
@@ -16,6 +17,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const adminUiPath = path.join(__dirname, "public", "admin");
+
+console.log("ADMIN UI PATH =", adminUiPath);
+console.log("INDEX EXISTS =", fs.existsSync(path.join(adminUiPath, "index.html")));
+console.log("CSS EXISTS =", fs.existsSync(path.join(adminUiPath, "styles.css")));
+console.log("APP JS EXISTS =", fs.existsSync(path.join(adminUiPath, "app.js")));
 
 app.use("/admin-ui", express.static(adminUiPath));
 
