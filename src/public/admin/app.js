@@ -6,26 +6,17 @@ const els = {
   statPending: document.getElementById("statPending"),
   statNotFound: document.getElementById("statNotFound"),
 
-  refreshDashboardBtn: document.getElementById("refreshDashboardBtn"),
-  syncPendingBtn: document.getElementById("syncPendingBtn"),
-
   excelFileInput: document.getElementById("excelFileInput"),
   importExcelBtn: document.getElementById("importExcelBtn"),
   importResult: document.getElementById("importResult"),
 
-  loadPendingBtn: document.getElementById("loadPendingBtn"),
   pendingSummary: document.getElementById("pendingSummary"),
   pendingTableBody: document.getElementById("pendingTableBody"),
 
-  loadNotFoundBtn: document.getElementById("loadNotFoundBtn"),
-  notFoundSummary: document.getElementById("notFoundSummary"),
-  notFoundTableBody: document.getElementById("notFoundTableBody"),
-
   kitSearchInput: document.getElementById("kitSearchInput"),
-  loadKitsBtn: document.getElementById("loadKitsBtn"),
   kitsTableBody: document.getElementById("kitsTableBody"),
-  sidebarKitsList: document.getElementById("sidebarKitsList"),
 
+  kitDetailSection: document.getElementById("kitDetailSection"),
   kitDetailBox: document.getElementById("kitDetailBox"),
   kitDetailTableBody: document.getElementById("kitDetailTableBody")
 };
@@ -117,21 +108,37 @@ async function importExcel() {
   }
 }
 
-async function loadPendingComponents() {
+async function loadComponentsToTreat() {
   try {
-    const data = await fetchJson("/api/pressero/pending-components?limit=100");
+    const [pendingData, notFoundData] = await Promise.all([
+      fetchJson("/api/pressero/pending-components?limit=200"),
+      fetchJson("/api/pressero/components-by-status?status=NOT_FOUND&limit=200")
+    ]);
+
+    const pendingItems = Array.isArray(pendingData.items) ? pendingData.items : [];
+    const notFoundItems = Array.isArray(notFoundData.items) ? notFoundData.items : [];
+
+    const map = new Map();
+
+    [...pendingItems, ...notFoundItems].forEach(item => {
+      const key = `${item.partId}__${item.componentId}__${item.lastSyncStatus}`;
+      map.set(key, item);
+    });
+
+    const items = Array.from(map.values());
 
     els.pendingSummary.innerHTML = `
-      Total en attente : <strong>${data.summary.totalPending}</strong><br>
-      Retournés : <strong>${data.summary.returned}</strong>
+      Total à traiter : <strong>${items.length}</strong><br>
+      À synchroniser : <strong>${pendingData.summary?.totalPending || 0}</strong><br>
+      Introuvables : <strong>${notFoundData.summary?.total || 0}</strong>
     `;
 
-    if (!data.items.length) {
-      els.pendingTableBody.innerHTML = `<tr><td colspan="5" class="table-empty">Aucun composant en attente</td></tr>`;
+    if (!items.length) {
+      els.pendingTableBody.innerHTML = `<tr><td colspan="5" class="table-empty">Aucun composant à traiter</td></tr>`;
       return;
     }
 
-    els.pendingTableBody.innerHTML = data.items.map(item => `
+    els.pendingTableBody.innerHTML = items.map(item => `
       <tr>
         <td>${escapeHtml(item.partId)}</td>
         <td>${escapeHtml(item.componentId)}</td>
@@ -142,34 +149,6 @@ async function loadPendingComponents() {
     `).join("");
   } catch (err) {
     els.pendingSummary.textContent = err.message;
-  }
-}
-
-async function loadNotFoundComponents() {
-  try {
-    const data = await fetchJson("/api/pressero/components-by-status?status=NOT_FOUND&limit=100");
-
-    els.notFoundSummary.innerHTML = `
-      Total introuvables : <strong>${data.summary.total}</strong><br>
-      Retournés : <strong>${data.summary.returned}</strong>
-    `;
-
-    if (!data.items.length) {
-      els.notFoundTableBody.innerHTML = `<tr><td colspan="5" class="table-empty">Aucun composant introuvable</td></tr>`;
-      return;
-    }
-
-    els.notFoundTableBody.innerHTML = data.items.map(item => `
-      <tr>
-        <td>${escapeHtml(item.partId)}</td>
-        <td>${escapeHtml(item.componentId)}</td>
-        <td>${escapeHtml(item.langCode)}</td>
-        <td>${statusBadge(item.lastSyncStatus)}</td>
-        <td>${escapeHtml(item.lastSyncMessage)}</td>
-      </tr>
-    `).join("");
-  } catch (err) {
-    els.notFoundSummary.textContent = err.message;
   }
 }
 
@@ -184,40 +163,10 @@ function filterKits(list, term) {
   );
 }
 
-function renderSidebarKits() {
-  const filtered = filterKits(state.kits, els.kitSearchInput.value);
-
-  if (!filtered.length) {
-    els.sidebarKitsList.innerHTML = '<div class="sidebar-empty">Aucun kit trouvé.</div>';
-    return;
-  }
-
-  els.sidebarKitsList.innerHTML = filtered.map(kit => `
-    <div class="sidebar-kit-item">
-      <div class="sidebar-kit-head">
-        <div>
-          <div class="sidebar-kit-title">${escapeHtml(kit.kit_name)}</div>
-          <div class="sidebar-kit-subtitle">${escapeHtml(kit.part_id)}</div>
-        </div>
-        <button class="sidebar-kit-btn" data-partid="${escapeHtml(kit.part_id)}">Voir</button>
-      </div>
-    </div>
-  `).join("");
-
-  els.sidebarKitsList.querySelectorAll(".sidebar-kit-btn").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const partId = btn.getAttribute("data-partid");
-      state.selectedPartId = partId;
-      await loadKitDetail(partId);
-    });
-  });
-}
-
 async function loadKits() {
   try {
     const data = await fetchJson("/api/kits");
     state.kits = Array.isArray(data.kits) ? data.kits : [];
-    renderSidebarKits();
 
     const kits = filterKits(state.kits, els.kitSearchInput.value);
 
@@ -250,6 +199,7 @@ function bindKitButtons() {
       const partId = btn.getAttribute("data-partid");
       state.selectedPartId = partId;
       await loadKitDetail(partId);
+      els.kitDetailSection.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
 }
@@ -288,32 +238,10 @@ async function loadKitDetail(partId) {
   }
 }
 
-async function syncPending() {
-  try {
-    els.pendingSummary.textContent = "Synchronisation en cours...";
-    const data = await fetchJson("/api/pressero/sync-pending?limit=200", {
-      method: "POST"
-    });
-
-    els.pendingSummary.innerHTML = `
-      Synchronisation terminée.<br>
-      Composants trouvés : <strong>${data.summary.componentsFound}</strong><br>
-      OK : <strong>${data.summary.okCount}</strong><br>
-      NOT_FOUND : <strong>${data.summary.notFoundCount}</strong><br>
-      ERROR : <strong>${data.summary.errorCount}</strong>
-    `;
-
-    await refreshAll();
-  } catch (err) {
-    els.pendingSummary.textContent = err.message;
-  }
-}
-
 async function refreshAll() {
   await Promise.all([
     loadDashboard(),
-    loadPendingComponents(),
-    loadNotFoundComponents(),
+    loadComponentsToTreat(),
     loadKits()
   ]);
 
@@ -323,15 +251,9 @@ async function refreshAll() {
 }
 
 function bindEvents() {
-  els.refreshDashboardBtn.addEventListener("click", refreshAll);
   els.importExcelBtn.addEventListener("click", importExcel);
-  els.loadPendingBtn.addEventListener("click", loadPendingComponents);
-  els.loadNotFoundBtn.addEventListener("click", loadNotFoundComponents);
-  els.loadKitsBtn.addEventListener("click", loadKits);
-  els.syncPendingBtn.addEventListener("click", syncPending);
 
   els.kitSearchInput.addEventListener("input", () => {
-    renderSidebarKits();
     loadKits();
   });
 }
