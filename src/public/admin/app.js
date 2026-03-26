@@ -9,6 +9,7 @@ const els = {
   excelFileInput: document.getElementById("excelFileInput"),
   importExcelBtn: document.getElementById("importExcelBtn"),
   importResult: document.getElementById("importResult"),
+  exportExcelBtn: document.getElementById("exportExcelBtn"),
 
   pendingSummary: document.getElementById("pendingSummary"),
   pendingTableBody: document.getElementById("pendingTableBody"),
@@ -32,6 +33,9 @@ function escapeHtml(str) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+function exportExcel() {
+  window.open("/api/admin/export-excel", "_blank");
 }
 
 function statusBadge(status) {
@@ -252,6 +256,7 @@ async function refreshAll() {
 
 function bindEvents() {
   els.importExcelBtn.addEventListener("click", importExcel);
+  els.exportExcelBtn.addEventListener("click", exportExcel);
 
   els.kitSearchInput.addEventListener("input", () => {
     loadKits();

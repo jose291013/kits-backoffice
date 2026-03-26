@@ -152,6 +152,37 @@ async function deleteComponentsByKitId(kitId) {
   );
 }
 
+async function getAllKitComponentsForExport() {
+  return all(
+    `
+    SELECT
+      k.part_id,
+      k.kit_name,
+      k.default_kit_qty,
+      k.is_active AS kit_is_active,
+      k.last_imported_at,
+
+      kc.sort_order,
+      kc.component_id,
+      kc.product_name,
+      kc.lang_code,
+      kc.default_component_qty,
+      kc.q2_standard_quotation,
+      kc.q3_height,
+      kc.q4_width,
+      kc.presserso_id_number,
+      kc.product_id,
+      kc.product_is_active,
+      kc.is_active,
+      kc.last_sync_status,
+      kc.last_sync_message
+    FROM kits k
+    INNER JOIN kit_components kc ON kc.kit_id = k.id
+    ORDER BY k.part_id, kc.sort_order, kc.id
+    `
+  );
+}
+
 async function insertComponent({
   kitId,
   componentId,
@@ -567,20 +598,21 @@ async function saveImportedKits(kits) {
 
 module.exports = {
   getAllKits,
-  getAllKitsDetailed,
   getKitByPartId,
   getKitById,
-  getComponentsByKitId,
-  getComponentByKitIdAndComponentId,
-  getPendingComponents,
-  countPendingComponents,
-  getComponentsByStatus,
-  countComponentsByStatus,
   upsertKit,
   deleteComponentsByKitId,
   insertComponent,
   updateComponentById,
   deactivateMissingComponents,
+  getComponentsByKitId,
+  getComponentByKitIdAndComponentId,
+  getAllKitsDetailed,
+  getPendingComponents,
+  countPendingComponents,
+  getComponentsByStatus,
+  countComponentsByStatus,
+  getAllKitComponentsForExport,
   saveImportedKits,
   updateComponentSyncData
 };
