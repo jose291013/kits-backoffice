@@ -1,12 +1,21 @@
 (function () {
-  function getCurrentScript() {
-    return document.currentScript || (function () {
-      const scripts = document.getElementsByTagName("script");
-      return scripts[scripts.length - 1];
-    })();
+  function findLoaderScript() {
+    const scripts = document.getElementsByTagName("script");
+    for (let i = scripts.length - 1; i >= 0; i--) {
+      const src = scripts[i].src || "";
+      if (src.indexOf("/kit-ui-loader.js") !== -1) {
+        return scripts[i];
+      }
+    }
+    return null;
   }
 
-  function getUserEmailFromPage() {
+  function getEmailFromPage(root) {
+    const directEmail = (root.getAttribute("data-user-email") || "").trim();
+    if (directEmail && directEmail.includes("@")) {
+      return directEmail;
+    }
+
     const correo = document.querySelector("#correo");
     if (correo) {
       const txt = (correo.textContent || "").trim();
@@ -23,38 +32,82 @@
     return "";
   }
 
-  function initLoader() {
-    const root = document.getElementById("kitApp");
-    if (!root) return;
+  function buildIframe(root, baseUrl, partId, email) {
+    if (root.getAttribute("data-kit-mounted") === "1") return;
 
-    const scriptEl = getCurrentScript();
-    const scriptSrc = scriptEl && scriptEl.src ? scriptEl.src : "";
-    const baseUrl = scriptSrc.replace(/\/kit-ui-loader\.js(?:\?.*)?$/, "");
-
-    const partId = (root.dataset.partid || "").trim();
-    const explicitEmail = (root.dataset.userEmail || "").trim();
-    const email = explicitEmail || getUserEmailFromPage();
-
-    if (!partId || !baseUrl || !email) {
-      root.innerHTML = '<div style="padding:20px;border:1px solid #ddd;border-radius:12px;background:#fff;">Configuration incomplète : PartID, baseUrl ou email utilisateur introuvable.</div>';
-      return;
-    }
+    root.setAttribute("data-kit-mounted", "1");
+    root.innerHTML = "";
 
     const iframe = document.createElement("iframe");
     iframe.src =
-      `${baseUrl}/kit-ui?partId=${encodeURIComponent(partId)}&email=${encodeURIComponent(email)}&apiBase=${encodeURIComponent(baseUrl)}`;
+      baseUrl +
+      "/kit-ui?partId=" + encodeURIComponent(partId) +
+      "&email=" + encodeURIComponent(email) +
+      "&apiBase=" + encodeURIComponent(baseUrl);
+
     iframe.style.width = "100%";
     iframe.style.minHeight = "1600px";
     iframe.style.border = "none";
     iframe.style.background = "transparent";
 
-    root.innerHTML = "";
     root.appendChild(iframe);
   }
 
+  function tryInit() {
+    const root = document.getElementById("kitApp");
+    if (!root) return false;
+
+    const loaderScript = findLoaderScript();
+    const scriptSrc = loaderScript ? (loaderScript.src || "") : "";
+    const baseUrl = scriptSrc.replace(/\/kit-ui-loader\.js(?:\?.*)?$/, "");
+
+    const partId = (root.getAttribute("data-partid") || "").trim();
+    const email = getEmailFromPage(root);
+
+    console.log("KIT LOADER DEBUG", {
+      partId: partId,
+      email: email,
+      scriptSrc: scriptSrc,
+      baseUrl: baseUrl,
+      rootHtml: root.outerHTML
+    });
+
+    if (!partId || !baseUrl || !email) {
+      return false;
+    }
+
+    buildIframe(root, baseUrl, partId, email);
+    return true;
+  }
+
+  function waitAndInit() {
+    let attempts = 0;
+    const maxAttempts = 80;
+
+    const timer = setInterval(function () {
+      attempts += 1;
+      const ok = tryInit();
+
+      if (ok) {
+        clearInterval(timer);
+        return;
+      }
+
+      if (attempts >= maxAttempts) {
+        clearInterval(timer);
+
+        const root = document.getElementById("kitApp");
+        if (root && !root.getAttribute("data-kit-mounted")) {
+          root.innerHTML =
+            '<div style="padding:20px;border:1px solid #ddd;border-radius:12px;background:#fff;">Configuration incomplète : PartID, baseUrl ou email utilisateur introuvable.</div>';
+        }
+      }
+    }, 250);
+  }
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initLoader);
+    document.addEventListener("DOMContentLoaded", waitAndInit);
   } else {
-    initLoader();
+    waitAndInit();
   }
 })();
