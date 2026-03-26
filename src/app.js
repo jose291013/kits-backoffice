@@ -17,6 +17,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const adminUiPath = path.join(__dirname, "public", "admin");
+const kitUiPath = path.join(__dirname, "public", "kit-ui");
 
 console.log("ADMIN UI PATH =", adminUiPath);
 console.log("INDEX EXISTS =", fs.existsSync(path.join(adminUiPath, "index.html")));
@@ -24,9 +25,18 @@ console.log("CSS EXISTS =", fs.existsSync(path.join(adminUiPath, "styles.css")))
 console.log("APP JS EXISTS =", fs.existsSync(path.join(adminUiPath, "app.js")));
 
 app.use("/admin-ui", express.static(adminUiPath));
-
 app.get("/admin-ui", (req, res) => {
   res.sendFile(path.join(adminUiPath, "index.html"));
+});
+
+app.use("/kit-ui-assets", express.static(kitUiPath));
+
+app.get("/kit-ui", (req, res) => {
+  res.sendFile(path.join(kitUiPath, "index.html"));
+});
+
+app.get("/kit-ui-loader.js", (req, res) => {
+  res.sendFile(path.join(kitUiPath, "loader.js"));
 });
 
 app.get("/health", (req, res) => {
