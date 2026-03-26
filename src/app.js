@@ -15,7 +15,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/admin-ui", express.static(path.join(__dirname, "public/admin")));
+const adminUiPath = path.join(__dirname, "public", "admin");
+
+app.use("/admin-ui", express.static(adminUiPath));
+
+app.get("/admin-ui", (req, res) => {
+  res.sendFile(path.join(adminUiPath, "index.html"));
+});
 
 app.get("/health", (req, res) => {
   res.json({ ok: true });
