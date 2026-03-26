@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 
 const kitRoutes = require("./routes/kitRoutes");
 const importRoutes = require("./routes/importRoutes");
@@ -13,6 +14,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use("/admin-ui", express.static(path.join(__dirname, "public/admin")));
 
 app.get("/health", (req, res) => {
   res.json({ ok: true });

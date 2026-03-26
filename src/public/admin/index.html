@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kits Backoffice</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <header class="admin-header">
+      <div>
+        <h1>Kits Backoffice</h1>
+        <p class="admin-subtitle">Gestion des kits Pressero</p>
+      </div>
+      <div class="admin-header-actions">
+        <button id="refreshDashboardBtn" class="btn btn-secondary">Actualiser</button>
+        <button id="syncPendingBtn" class="btn btn-primary">Synchroniser les composants en attente</button>
+      </div>
+    </header>
+
+    <section class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Kits</div>
+        <div class="stat-value" id="statKits">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Composants OK</div>
+        <div class="stat-value" id="statOk">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">À synchroniser</div>
+        <div class="stat-value" id="statPending">-</div>
+      </div>
+      <div class="stat-card stat-card-danger">
+        <div class="stat-label">Introuvables</div>
+        <div class="stat-value" id="statNotFound">-</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Import Excel</h2>
+      </div>
+
+      <div class="import-box">
+        <input type="file" id="excelFileInput" accept=".xlsx,.xls" />
+        <button id="importExcelBtn" class="btn btn-primary">Importer le fichier Excel</button>
+      </div>
+
+      <div id="importResult" class="result-box muted">
+        Aucun import lancé.
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Composants en attente</h2>
+        <div class="panel-actions">
+          <button id="loadPendingBtn" class="btn btn-secondary">Voir les composants en attente</button>
+        </div>
+      </div>
+
+      <div id="pendingSummary" class="result-box muted">Aucune donnée chargée.</div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>PartID</th>
+              <th>ComponentID</th>
+              <th>Langue</th>
+              <th>Statut</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody id="pendingTableBody">
+            <tr><td colspan="5" class="table-empty">Aucune donnée</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Composants introuvables</h2>
+        <div class="panel-actions">
+          <button id="loadNotFoundBtn" class="btn btn-secondary">Voir les introuvables</button>
+        </div>
+      </div>
+
+      <div id="notFoundSummary" class="result-box muted">Aucune donnée chargée.</div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>PartID</th>
+              <th>ComponentID</th>
+              <th>Langue</th>
+              <th>Statut</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody id="notFoundTableBody">
+            <tr><td colspan="5" class="table-empty">Aucune donnée</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Liste des kits</h2>
+        <div class="panel-actions">
+          <input id="kitSearchInput" class="text-input" type="text" placeholder="Rechercher par PartID..." />
+          <button id="loadKitsBtn" class="btn btn-secondary">Charger les kits</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>PartID</th>
+              <th>Nom</th>
+              <th>Qté kit défaut</th>
+              <th>Actif</th>
+              <th>Dernier import</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="kitsTableBody">
+            <tr><td colspan="7" class="table-empty">Aucune donnée</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Détail du kit</h2>
+      </div>
+
+      <div id="kitDetailBox" class="result-box muted">
+        Sélectionne un kit pour voir son détail.
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Ordre</th>
+              <th>ComponentID</th>
+              <th>Langue</th>
+              <th>Qté défaut</th>
+              <th>ProductId</th>
+              <th>Statut sync</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody id="kitDetailTableBody">
+            <tr><td colspan="7" class="table-empty">Aucune donnée</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
