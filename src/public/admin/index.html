@@ -7,165 +7,221 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="admin-shell">
-    <header class="admin-header">
-      <div>
-        <h1>Kits Backoffice</h1>
-        <p class="admin-subtitle">Gestion des kits Pressero</p>
-      </div>
-      <div class="admin-header-actions">
-        <button id="refreshDashboardBtn" class="btn btn-secondary">Actualiser</button>
-        <button id="syncPendingBtn" class="btn btn-primary">Synchroniser les composants en attente</button>
-      </div>
-    </header>
-
-    <section class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label">Kits</div>
-        <div class="stat-value" id="statKits">-</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Composants OK</div>
-        <div class="stat-value" id="statOk">-</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">À synchroniser</div>
-        <div class="stat-value" id="statPending">-</div>
-      </div>
-      <div class="stat-card stat-card-danger">
-        <div class="stat-label">Introuvables</div>
-        <div class="stat-value" id="statNotFound">-</div>
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="panel-header">
-        <h2>Import Excel</h2>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-block">
+        <div class="brand-title">PrintManager</div>
+        <div class="brand-subtitle">Kits Backoffice</div>
       </div>
 
-      <div class="import-box">
-        <input type="file" id="excelFileInput" accept=".xlsx,.xls" />
-        <button id="importExcelBtn" class="btn btn-primary">Importer le fichier Excel</button>
+      <nav class="sidebar-nav">
+        <button class="nav-item active">Tableau de bord</button>
+        <button class="nav-item">Kits</button>
+        <button class="nav-item">Anomalies</button>
+      </nav>
+
+      <div class="sidebar-search">
+        <label for="kitSearchInput" class="sr-only">Recherche kit</label>
+        <input id="kitSearchInput" type="text" class="search-input" placeholder="Rechercher un kit..." />
       </div>
 
-      <div id="importResult" class="result-box muted">
-        Aucun import lancé.
+      <div class="sidebar-list-header">Kits</div>
+      <div id="sidebarKitsList" class="sidebar-kits-list">
+        <div class="sidebar-empty">Chargement...</div>
       </div>
-    </section>
+    </aside>
 
-    <section class="panel">
-      <div class="panel-header">
-        <h2>Composants en attente</h2>
-        <div class="panel-actions">
-          <button id="loadPendingBtn" class="btn btn-secondary">Voir les composants en attente</button>
+    <div class="main-shell">
+      <header class="topbar">
+        <div>
+          <h1 class="page-title">Kits Backoffice</h1>
+          <p class="page-subtitle">Gestion des kits Pressero, synchronisation et contrôle qualité.</p>
         </div>
-      </div>
-
-      <div id="pendingSummary" class="result-box muted">Aucune donnée chargée.</div>
-
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>PartID</th>
-              <th>ComponentID</th>
-              <th>Langue</th>
-              <th>Statut</th>
-              <th>Message</th>
-            </tr>
-          </thead>
-          <tbody id="pendingTableBody">
-            <tr><td colspan="5" class="table-empty">Aucune donnée</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="panel-header">
-        <h2>Composants introuvables</h2>
-        <div class="panel-actions">
-          <button id="loadNotFoundBtn" class="btn btn-secondary">Voir les introuvables</button>
+        <div class="topbar-actions">
+          <button id="refreshDashboardBtn" class="btn btn-secondary">Actualiser</button>
+          <button id="syncPendingBtn" class="btn btn-primary">Synchroniser en attente</button>
         </div>
-      </div>
+      </header>
 
-      <div id="notFoundSummary" class="result-box muted">Aucune donnée chargée.</div>
+      <main class="content-grid">
+        <section class="hero-cards">
+          <article class="hero-card">
+            <div class="hero-label">Nombre de kits</div>
+            <div class="hero-value" id="statKits">-</div>
+          </article>
+          <article class="hero-card">
+            <div class="hero-label">Composants OK</div>
+            <div class="hero-value" id="statOk">-</div>
+          </article>
+          <article class="hero-card warning">
+            <div class="hero-label">À synchroniser</div>
+            <div class="hero-value" id="statPending">-</div>
+          </article>
+          <article class="hero-card danger">
+            <div class="hero-label">Introuvables</div>
+            <div class="hero-value" id="statNotFound">-</div>
+          </article>
+        </section>
 
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>PartID</th>
-              <th>ComponentID</th>
-              <th>Langue</th>
-              <th>Statut</th>
-              <th>Message</th>
-            </tr>
-          </thead>
-          <tbody id="notFoundTableBody">
-            <tr><td colspan="5" class="table-empty">Aucune donnée</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Importer un fichier Excel</h2>
+              <p>Chargez un fichier XLSX pour créer ou mettre à jour les kits.</p>
+            </div>
+          </div>
 
-    <section class="panel">
-      <div class="panel-header">
-        <h2>Liste des kits</h2>
-        <div class="panel-actions">
-          <input id="kitSearchInput" class="text-input" type="text" placeholder="Rechercher par PartID..." />
-          <button id="loadKitsBtn" class="btn btn-secondary">Charger les kits</button>
-        </div>
-      </div>
+          <div class="upload-box">
+            <div class="upload-copy">
+              <div class="upload-title">Importer votre fichier</div>
+              <div class="upload-subtitle">
+                Déposez ou sélectionnez un fichier Excel pour lancer l’analyse et la synchronisation métier.
+              </div>
+            </div>
 
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>PartID</th>
-              <th>Nom</th>
-              <th>Qté kit défaut</th>
-              <th>Actif</th>
-              <th>Dernier import</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="kitsTableBody">
-            <tr><td colspan="7" class="table-empty">Aucune donnée</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+            <div class="upload-actions">
+              <input type="file" id="excelFileInput" accept=".xlsx,.xls" />
+              <button id="importExcelBtn" class="btn btn-primary">Importer le fichier</button>
+            </div>
+          </div>
 
-    <section class="panel">
-      <div class="panel-header">
-        <h2>Détail du kit</h2>
-      </div>
+          <div id="importResult" class="message-box muted">Aucun import lancé.</div>
+        </section>
 
-      <div id="kitDetailBox" class="result-box muted">
-        Sélectionne un kit pour voir son détail.
-      </div>
+        <section class="panel">
+          <div class="split-actions">
+            <button id="loadPendingBtn" class="action-card warning">
+              <div class="action-card-title">Composants en attente</div>
+              <div class="action-card-copy">Afficher les composants TO_RESYNC, NOT_FOUND ou sans ProductId.</div>
+            </button>
 
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Ordre</th>
-              <th>ComponentID</th>
-              <th>Langue</th>
-              <th>Qté défaut</th>
-              <th>ProductId</th>
-              <th>Statut sync</th>
-              <th>Message</th>
-            </tr>
-          </thead>
-          <tbody id="kitDetailTableBody">
-            <tr><td colspan="7" class="table-empty">Aucune donnée</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+            <button id="loadNotFoundBtn" class="action-card danger">
+              <div class="action-card-title">Composants introuvables</div>
+              <div class="action-card-copy">Contrôler les composants absents de Pressero avant mise en production.</div>
+            </button>
+          </div>
+        </section>
+
+        <section class="panel wide-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Composants en attente</h2>
+              <p>Vue des composants qui nécessitent encore une action.</p>
+            </div>
+          </div>
+
+          <div id="pendingSummary" class="message-box muted">Aucune donnée chargée.</div>
+
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>PartID</th>
+                  <th>ComponentID</th>
+                  <th>Langue</th>
+                  <th>Statut</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody id="pendingTableBody">
+                <tr><td colspan="5" class="table-empty">Aucune donnée</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel wide-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Composants introuvables</h2>
+              <p>Composants présents dans l’Excel mais absents de Pressero.</p>
+            </div>
+          </div>
+
+          <div id="notFoundSummary" class="message-box muted">Aucune donnée chargée.</div>
+
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>PartID</th>
+                  <th>ComponentID</th>
+                  <th>Langue</th>
+                  <th>Statut</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody id="notFoundTableBody">
+                <tr><td colspan="5" class="table-empty">Aucune donnée</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel wide-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Liste des kits</h2>
+              <p>Tous les kits importés, avec accès direct au détail.</p>
+            </div>
+            <div class="panel-header-actions">
+              <button id="loadKitsBtn" class="btn btn-secondary">Charger les kits</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>PartID</th>
+                  <th>Nom</th>
+                  <th>Qté défaut</th>
+                  <th>Actif</th>
+                  <th>Dernier import</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="kitsTableBody">
+                <tr><td colspan="7" class="table-empty">Aucune donnée</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel wide-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Détail du kit</h2>
+              <p>Vue détaillée du kit sélectionné et des statuts de ses composants.</p>
+            </div>
+          </div>
+
+          <div id="kitDetailBox" class="detail-summary muted">
+            Sélectionne un kit pour voir son détail.
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Ordre</th>
+                  <th>ComponentID</th>
+                  <th>Langue</th>
+                  <th>Qté défaut</th>
+                  <th>ProductId</th>
+                  <th>Statut sync</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody id="kitDetailTableBody">
+                <tr><td colspan="7" class="table-empty">Aucune donnée</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
   </div>
 
   <script src="./app.js"></script>

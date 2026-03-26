@@ -24,9 +24,15 @@ const els = {
   kitSearchInput: document.getElementById("kitSearchInput"),
   loadKitsBtn: document.getElementById("loadKitsBtn"),
   kitsTableBody: document.getElementById("kitsTableBody"),
+  sidebarKitsList: document.getElementById("sidebarKitsList"),
 
   kitDetailBox: document.getElementById("kitDetailBox"),
   kitDetailTableBody: document.getElementById("kitDetailTableBody")
+};
+
+const state = {
+  kits: [],
+  selectedPartId: null
 };
 
 function escapeHtml(str) {
@@ -38,16 +44,18 @@ function escapeHtml(str) {
 }
 
 function statusBadge(status) {
-  const safe = escapeHtml(status || "");
-  return `<span class="status-badge status-${safe}">${safe || "-"}</span>`;
+  const safe = escapeHtml(status || "-");
+  return `<span class="status-badge status-${safe}">${safe}</span>`;
 }
 
 async function fetchJson(url, options = {}) {
   const res = await fetch(`${API_BASE}${url}`, options);
   const data = await res.json();
+
   if (!res.ok || data.ok === false) {
     throw new Error(data.error || "Erreur API");
   }
+
   return data;
 }
 
@@ -67,6 +75,7 @@ async function loadDashboard() {
 
 async function importExcel() {
   const file = els.excelFileInput.files[0];
+
   if (!file) {
     els.importResult.textContent = "Choisis un fichier Excel avant de lancer l'import.";
     return;
@@ -102,7 +111,7 @@ async function importExcel() {
       Importé le : ${escapeHtml(data.importedAt)}
     `;
 
-    await loadDashboard();
+    await refreshAll();
   } catch (err) {
     els.importResult.textContent = err.message;
   }
@@ -164,19 +173,53 @@ async function loadNotFoundComponents() {
   }
 }
 
+function filterKits(list, term) {
+  const q = String(term || "").trim().toLowerCase();
+
+  if (!q) return list;
+
+  return list.filter(kit =>
+    String(kit.part_id || "").toLowerCase().includes(q) ||
+    String(kit.kit_name || "").toLowerCase().includes(q)
+  );
+}
+
+function renderSidebarKits() {
+  const filtered = filterKits(state.kits, els.kitSearchInput.value);
+
+  if (!filtered.length) {
+    els.sidebarKitsList.innerHTML = '<div class="sidebar-empty">Aucun kit trouvé.</div>';
+    return;
+  }
+
+  els.sidebarKitsList.innerHTML = filtered.map(kit => `
+    <div class="sidebar-kit-item">
+      <div class="sidebar-kit-head">
+        <div>
+          <div class="sidebar-kit-title">${escapeHtml(kit.kit_name)}</div>
+          <div class="sidebar-kit-subtitle">${escapeHtml(kit.part_id)}</div>
+        </div>
+        <button class="sidebar-kit-btn" data-partid="${escapeHtml(kit.part_id)}">Voir</button>
+      </div>
+    </div>
+  `).join("");
+
+  els.sidebarKitsList.querySelectorAll(".sidebar-kit-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const partId = btn.getAttribute("data-partid");
+      state.selectedPartId = partId;
+      await loadKitDetail(partId);
+    });
+  });
+}
+
 async function loadKits() {
   try {
     const data = await fetchJson("/api/kits");
-    const term = (els.kitSearchInput.value || "").trim().toLowerCase();
+    state.kits = Array.isArray(data.kits) ? data.kits : [];
+    renderSidebarKits();
 
-    let kits = Array.isArray(data.kits) ? data.kits : [];
-
-    if (term) {
-      kits = kits.filter(kit =>
-        String(kit.part_id || "").toLowerCase().includes(term) ||
-        String(kit.kit_name || "").toLowerCase().includes(term)
-      );
-    }
+    const kits = filterKits(state.kits, els.kitSearchInput.value);
 
     if (!kits.length) {
       els.kitsTableBody.innerHTML = `<tr><td colspan="7" class="table-empty">Aucun kit trouvé</td></tr>`;
@@ -205,6 +248,7 @@ function bindKitButtons() {
   document.querySelectorAll(".btn-view-kit").forEach(btn => {
     btn.addEventListener("click", async () => {
       const partId = btn.getAttribute("data-partid");
+      state.selectedPartId = partId;
       await loadKitDetail(partId);
     });
   });
@@ -259,32 +303,42 @@ async function syncPending() {
       ERROR : <strong>${data.summary.errorCount}</strong>
     `;
 
-    await loadDashboard();
-    await loadPendingComponents();
-    await loadNotFoundComponents();
+    await refreshAll();
   } catch (err) {
     els.pendingSummary.textContent = err.message;
   }
 }
 
-function bindEvents() {
-  els.refreshDashboardBtn.addEventListener("click", async () => {
-    await loadDashboard();
-  });
+async function refreshAll() {
+  await Promise.all([
+    loadDashboard(),
+    loadPendingComponents(),
+    loadNotFoundComponents(),
+    loadKits()
+  ]);
 
+  if (state.selectedPartId) {
+    await loadKitDetail(state.selectedPartId);
+  }
+}
+
+function bindEvents() {
+  els.refreshDashboardBtn.addEventListener("click", refreshAll);
   els.importExcelBtn.addEventListener("click", importExcel);
   els.loadPendingBtn.addEventListener("click", loadPendingComponents);
   els.loadNotFoundBtn.addEventListener("click", loadNotFoundComponents);
   els.loadKitsBtn.addEventListener("click", loadKits);
   els.syncPendingBtn.addEventListener("click", syncPending);
+
+  els.kitSearchInput.addEventListener("input", () => {
+    renderSidebarKits();
+    loadKits();
+  });
 }
 
 async function init() {
   bindEvents();
-  await loadDashboard();
-  await loadPendingComponents();
-  await loadNotFoundComponents();
-  await loadKits();
+  await refreshAll();
 }
 
 init();
