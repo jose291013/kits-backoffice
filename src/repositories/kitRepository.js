@@ -198,6 +198,8 @@ async function insertComponent({
   q3Height = null,
   q4Width = null,
   pressersoIdNumber = null,
+  productImageLargeUrl = null,
+  productImageXlargeUrl = null,
   sourceHash = null,
   lastSyncStatus = null,
   lastSyncMessage = null
@@ -219,6 +221,8 @@ async function insertComponent({
       q3_height,
       q4_width,
       presserso_id_number,
+      product_image_large_url,
+      product_image_xlarge_url,
       source_hash,
       last_sync_status,
       last_sync_message
@@ -240,6 +244,8 @@ async function insertComponent({
       q3Height,
       q4Width,
       pressersoIdNumber,
+      productImageLargeUrl,
+      productImageXlargeUrl,
       sourceHash,
       lastSyncStatus,
       lastSyncMessage
@@ -255,6 +261,8 @@ async function updateComponentSyncData(componentDbId, syncData) {
     SET product_id = ?,
         product_is_active = ?,
         allowed_groups_json = ?,
+        product_image_large_url = ?,
+        product_image_xlarge_url = ?,
         last_sync_status = ?,
         last_sync_message = ?
     WHERE id = ?
@@ -263,6 +271,8 @@ async function updateComponentSyncData(componentDbId, syncData) {
       syncData.productId,
       syncData.productIsActive,
       syncData.allowedGroupsJson,
+      syncData.productImageLargeUrl || null,
+      syncData.productImageXlargeUrl || null,
       syncData.lastSyncStatus,
       syncData.lastSyncMessage,
       componentDbId
@@ -304,10 +314,30 @@ async function getAllKitsDetailed() {
 async function getComponentsByKitId(kitId) {
   return all(
     `
-    SELECT *
-    FROM kit_components
-    WHERE kit_id = ?
-    ORDER BY sort_order, id
+    SELECT
+      kc.id,
+      kc.kit_id,
+      kc.component_id,
+      kc.product_name,
+      kc.lang_code,
+      kc.default_component_qty,
+      kc.sort_order,
+      kc.is_active,
+      kc.product_id,
+      kc.product_is_active,
+      kc.allowed_groups_json,
+      kc.q2_standard_quotation,
+      kc.q3_height,
+      kc.q4_width,
+      kc.presserso_id_number,
+      kc.product_image_large_url,
+      kc.product_image_xlarge_url,
+      kc.last_sync_status,
+      kc.last_sync_message,
+      kc.source_hash
+    FROM kit_components kc
+    WHERE kc.kit_id = ?
+    ORDER BY kc.sort_order, kc.id
     `,
     [kitId]
   );
