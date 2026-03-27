@@ -29,6 +29,7 @@ function getTokenHeaders(token) {
   return {
     Authorization: `Token ${token}`,
     "Content-Type": "application/json",
+    "Accept-Language": "en-US",
     Accept: "application/json"
   };
 }
@@ -167,6 +168,9 @@ async function getUserByEmail(email) {
   const token = await authenticate();
 
   const url = `${env.presseroBaseUrl}/api/site/${env.presseroProductSiteDomain}/users/?pageNumber=0&pageSize=1&email=${encodeURIComponent(email)}&includeDeleted=false`;
+  console.log("GET USER BY EMAIL URL:", url);
+  console.log("GET USER BY EMAIL HEADERS:", JSON.stringify(getTokenHeaders(token), null, 2));
+
 
   const response = await axios.get(url, {
     headers: getTokenHeaders(token)
@@ -227,6 +231,46 @@ async function getUserGroupsByEmail(email) {
   };
 }
 
+function extractProductImages(details) {
+  const images = Array.isArray(details?.Images)
+    ? details.Images
+    : Array.isArray(details?.ProductImages)
+      ? details.ProductImages
+      : [];
+
+  if (!images.length) {
+    return {
+      productImageLargeUrl: null,
+      productImageXlargeUrl: null
+    };
+  }
+
+  const first = images[0] || {};
+
+  const large =
+    first.LargeImageUrl ||
+    first.LargeUrl ||
+    first.ImageLargeUrl ||
+    first.UrlLarge ||
+    first.Url ||
+    null;
+
+  const xlarge =
+    first.XLargeImageUrl ||
+    first.XlargeImageUrl ||
+    first.XLargeUrl ||
+    first.ImageXLargeUrl ||
+    first.UrlXLarge ||
+    first.Url ||
+    large ||
+    null;
+
+  return {
+    productImageLargeUrl: large,
+    productImageXlargeUrl: xlarge
+  };
+}
+
 async function resolveProductByName(productName) {
   const product = await findProductByName(productName);
 
@@ -236,6 +280,8 @@ async function resolveProductByName(productName) {
       productId: null,
       productIsActive: 0,
       allowedGroupsJson: null,
+      productImageLargeUrl: null,
+      productImageXlargeUrl: null,
       lastSyncStatus: "NOT_FOUND",
       lastSyncMessage: `Produit introuvable pour ProductName="${productName}"`
     };
@@ -249,6 +295,8 @@ async function resolveProductByName(productName) {
       productId: null,
       productIsActive: 0,
       allowedGroupsJson: null,
+      productImageLargeUrl: null,
+      productImageXlargeUrl: null,
       lastSyncStatus: "ERROR",
       lastSyncMessage: `Produit trouvé sans ProductId pour ProductName="${productName}"`
     };
@@ -257,20 +305,26 @@ async function resolveProductByName(productName) {
   try {
     const details = await getProductDetails(productId);
 
-    return {
-      found: true,
-      productId: String(productId),
-      productIsActive: details?.IsActive ? 1 : 0,
-      allowedGroupsJson: JSON.stringify(details?.AllowedGroups || []),
-      lastSyncStatus: "OK",
-      lastSyncMessage: "Synchronisé avec succès"
-    };
+    const images = extractProductImages(details);
+
+return {
+  found: true,
+  productId: String(productId),
+  productIsActive: details?.IsActive ? 1 : 0,
+  allowedGroupsJson: JSON.stringify(details?.AllowedGroups || []),
+  productImageLargeUrl: images.productImageLargeUrl,
+  productImageXlargeUrl: images.productImageXlargeUrl,
+  lastSyncStatus: "OK",
+  lastSyncMessage: "Synchronisé avec succès"
+};
   } catch (err) {
     return {
       found: true,
       productId: String(productId),
       productIsActive: product?.IsActive ? 1 : 0,
       allowedGroupsJson: null,
+      productImageLargeUrl: null,
+      productImageXlargeUrl: null,
       lastSyncStatus: "PARTIAL_OK",
       lastSyncMessage: `Produit trouvé, mais détail produit indisponible: ${err.message}`
     };
