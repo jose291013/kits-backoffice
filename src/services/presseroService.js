@@ -232,11 +232,7 @@ async function getUserGroupsByEmail(email) {
 }
 
 function extractProductImages(details) {
-  const images = Array.isArray(details?.Images)
-    ? details.Images
-    : Array.isArray(details?.ProductImages)
-      ? details.ProductImages
-      : [];
+  const images = Array.isArray(details?.ImagesUrl) ? details.ImagesUrl : [];
 
   if (!images.length) {
     return {
@@ -245,24 +241,25 @@ function extractProductImages(details) {
     };
   }
 
-  const first = images[0] || {};
-
-  const large =
-    first.LargeImageUrl ||
-    first.LargeUrl ||
-    first.ImageLargeUrl ||
-    first.UrlLarge ||
-    first.Url ||
-    null;
+  const findByKeyword = (keywords) => {
+    return images.find(url => {
+      const lower = String(url || "").toLowerCase();
+      return keywords.some(keyword => lower.includes(keyword));
+    }) || null;
+  };
 
   const xlarge =
-    first.XLargeImageUrl ||
-    first.XlargeImageUrl ||
-    first.XLargeUrl ||
-    first.ImageXLargeUrl ||
-    first.UrlXLarge ||
-    first.Url ||
-    large ||
+    findByKeyword(["xlarge", "_xl", "_xlarge"]) ||
+    findByKeyword(["large"]) ||
+    findByKeyword(["medium"]) ||
+    images[0] ||
+    null;
+
+  const large =
+    findByKeyword(["large"]) ||
+    findByKeyword(["medium"]) ||
+    findByKeyword(["small"]) ||
+    images[0] ||
     null;
 
   return {
