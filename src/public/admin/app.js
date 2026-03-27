@@ -13,6 +13,7 @@ const els = {
 
   pendingSummary: document.getElementById("pendingSummary"),
   pendingTableBody: document.getElementById("pendingTableBody"),
+  syncPendingBtn: document.getElementById("syncPendingBtn"),
 
   kitSearchInput: document.getElementById("kitSearchInput"),
   kitsTableBody: document.getElementById("kitsTableBody"),
@@ -52,6 +53,29 @@ async function fetchJson(url, options = {}) {
   }
 
   return data;
+}
+
+async function syncPendingComponents() {
+  try {
+    els.pendingSummary.textContent = "Synchronisation en cours...";
+
+    const data = await fetchJson("/api/pressero/sync-pending?limit=200", {
+      method: "POST"
+    });
+
+    els.pendingSummary.innerHTML = `
+      <strong>Synchronisation terminée</strong><br>
+      Composants traités : <strong>${data.summary.componentsFound}</strong><br>
+      OK : <strong>${data.summary.okCount}</strong><br>
+      PARTIAL_OK : <strong>${data.summary.partialOkCount}</strong><br>
+      NOT_FOUND : <strong>${data.summary.notFoundCount}</strong><br>
+      ERROR : <strong>${data.summary.errorCount}</strong>
+    `;
+
+    await refreshAll();
+  } catch (err) {
+    els.pendingSummary.textContent = err.message;
+  }
 }
 
 async function loadDashboard() {
@@ -257,6 +281,7 @@ async function refreshAll() {
 function bindEvents() {
   els.importExcelBtn.addEventListener("click", importExcel);
   els.exportExcelBtn.addEventListener("click", exportExcel);
+  els.syncPendingBtn.addEventListener("click", syncPendingComponents);
 
   els.kitSearchInput.addEventListener("input", () => {
     loadKits();

@@ -61,32 +61,36 @@
     </section>
 
     <section class="panel">
-      <div class="panel-header">
-        <div>
-          <h2>Composants à traiter</h2>
-          <p>Composants à resynchroniser, introuvables ou sans ProductId.</p>
-        </div>
-      </div>
+  <div class="panel-header panel-header-inline">
+    <div>
+      <h2>Composants à traiter</h2>
+      <p>Composants à resynchroniser, introuvables ou sans ProductId.</p>
+    </div>
 
-      <div id="pendingSummary" class="message-box muted">Aucune donnée chargée.</div>
+    <div class="panel-actions">
+      <button id="syncPendingBtn" class="btn btn-primary">Synchroniser les composants à traiter</button>
+    </div>
+  </div>
 
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>PartID</th>
-              <th>ComponentID</th>
-              <th>Langue</th>
-              <th>Statut</th>
-              <th>Message</th>
-            </tr>
-          </thead>
-          <tbody id="pendingTableBody">
-            <tr><td colspan="5" class="table-empty">Aucune donnée</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+  <div id="pendingSummary" class="message-box muted">Aucune donnée chargée.</div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>PartID</th>
+          <th>ComponentID</th>
+          <th>Langue</th>
+          <th>Statut</th>
+          <th>Message</th>
+        </tr>
+      </thead>
+      <tbody id="pendingTableBody">
+        <tr><td colspan="5" class="table-empty">Aucune donnée</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
 
     <section class="panel">
       <div class="panel-header">

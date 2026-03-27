@@ -126,6 +126,19 @@ button, input {
   color: var(--text-soft);
 }
 
+.panel-header-inline {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .upload-box {
   display: flex;
   justify-content: space-between;
