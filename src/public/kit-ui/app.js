@@ -61,8 +61,40 @@
   }
 
   function buildComponentImageUrl(component) {
-    return component.product_image_url || "";
+  return component.product_image_large_url || component.product_image_xlarge_url || "";
+}
+
+function openImageModal(imageUrl) {
+  if (!imageUrl) return;
+
+  let modal = document.getElementById("kitImageModal");
+
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "kitImageModal";
+    modal.className = "kit-image-modal";
+    modal.innerHTML = `
+      <div class="kit-image-modal-backdrop"></div>
+      <div class="kit-image-modal-content">
+        <button type="button" class="kit-image-modal-close" aria-label="Fermer">×</button>
+        <img class="kit-image-modal-img" src="" alt="Image agrandie">
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.querySelector(".kit-image-modal-backdrop").addEventListener("click", () => {
+      modal.classList.remove("open");
+    });
+
+    modal.querySelector(".kit-image-modal-close").addEventListener("click", () => {
+      modal.classList.remove("open");
+    });
   }
+
+  const img = modal.querySelector(".kit-image-modal-img");
+  img.src = imageUrl;
+  modal.classList.add("open");
+}
 
   async function fetchJson(url, options = {}) {
     const res = await fetch(url, options);
@@ -194,14 +226,24 @@
           const pricing = pricingMap[componentId];
           const totalPrice = pricing ? pricing.totalPrice : 0;
           const imageUrl = buildComponentImageUrl(component);
+          const xlargeUrl = component.product_image_xlarge_url || imageUrl;
 
           return `
             <article class="kit-card">
               <div class="kit-card-image-wrap">
-                ${imageUrl
-                  ? `<img class="kit-card-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(component.product_name)}">`
-                  : `<div class="kit-card-no-image">Aucune image</div>`}
-              </div>
+  ${imageUrl
+    ? `
+      <button
+        type="button"
+        class="kit-card-image-button"
+        data-xlarge-url="${escapeHtml(xlargeUrl)}"
+        aria-label="Agrandir l'image">
+        <img class="kit-card-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(component.product_name)}">
+        <span class="kit-card-image-hint">Cliquer pour agrandir</span>
+      </button>
+    `
+    : `<div class="kit-card-no-image">Aucune image</div>`}
+</div>
 
               <div class="kit-card-body">
                 <div class="kit-card-title">${escapeHtml(component.product_name)}</div>
@@ -263,6 +305,13 @@
         setComponentQuantity(componentId, e.target.value);
       });
     });
+
+    document.querySelectorAll(".kit-card-image-button").forEach(button => {
+  button.addEventListener("click", () => {
+    const imageUrl = button.getAttribute("data-xlarge-url");
+    openImageModal(imageUrl);
+  });
+});
 
     const resetAllBtn = document.getElementById("resetAllBtn");
     if (resetAllBtn) {
