@@ -256,16 +256,21 @@ button, input {
   cursor: zoom-in;
 }
 
-.kit-card-image-hint {
+.kit-card-image-zoom {
   position: absolute;
-  left: 12px;
-  bottom: 12px;
-  background: rgba(17, 24, 39, 0.72);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 6px 10px;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #111827;
+  font-size: 16px;
+  line-height: 1;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
 }
 
 .kit-image-modal {

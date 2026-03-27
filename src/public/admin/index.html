@@ -114,7 +114,7 @@
               <th>Qté kit défaut</th>
               <th>Actif</th>
               <th>Dernier import</th>
-              <th>Action</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody id="kitsTableBody">
@@ -126,11 +126,14 @@
 
     <section class="panel" id="kitDetailSection">
       <div class="panel-header">
-        <div>
-          <h2>Détail du kit</h2>
-          <p>Vue détaillée du kit sélectionné et du statut de ses composants.</p>
-        </div>
-      </div>
+  <div>
+    <h2>Détail du kit</h2>
+    <p>Vue détaillée du kit sélectionné et du statut de ses composants.</p>
+  </div>
+  <div class="panel-actions">
+    <button id="syncSelectedKitBtn" class="btn btn-primary">Synchroniser ce kit</button>
+  </div>
+</div>
 
       <div id="kitDetailBox" class="detail-summary muted">
         Sélectionne un kit dans la liste pour voir son détail.

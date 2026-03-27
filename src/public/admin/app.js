@@ -14,6 +14,7 @@ const els = {
   pendingSummary: document.getElementById("pendingSummary"),
   pendingTableBody: document.getElementById("pendingTableBody"),
   syncPendingBtn: document.getElementById("syncPendingBtn"),
+  syncSelectedKitBtn: document.getElementById("syncSelectedKitBtn"),
 
   kitSearchInput: document.getElementById("kitSearchInput"),
   kitsTableBody: document.getElementById("kitsTableBody"),
@@ -90,6 +91,29 @@ async function loadDashboard() {
   els.statPending.textContent = pendingRes.summary?.totalPending || 0;
   els.statNotFound.textContent = notFoundRes.summary?.total || 0;
   els.statOk.textContent = okRes.summary?.total || 0;
+}
+
+async function syncKit(partId) {
+  if (!partId) return;
+
+  try {
+    els.kitDetailBox.innerHTML = `Synchronisation en cours pour <strong>${escapeHtml(partId)}</strong>...`;
+
+    const data = await fetchJson(`/api/pressero/sync-kit/${encodeURIComponent(partId)}`, {
+      method: "POST"
+    });
+
+    els.kitDetailBox.innerHTML = `
+      <strong>Synchronisation terminée</strong><br>
+      PartID : ${escapeHtml(partId)}<br>
+      Composants traités : <strong>${data.componentsProcessed}</strong>
+    `;
+
+    await refreshAll();
+    await loadKitDetail(partId);
+  } catch (err) {
+    els.kitDetailBox.textContent = err.message;
+  }
 }
 
 async function importExcel() {
@@ -211,7 +235,12 @@ async function loadKits() {
         <td>${kit.default_kit_qty}</td>
         <td>${kit.is_active === 1 ? "Oui" : "Non"}</td>
         <td>${escapeHtml(kit.last_imported_at || "")}</td>
-        <td><button class="btn btn-secondary btn-view-kit" data-partid="${escapeHtml(kit.part_id)}">Voir</button></td>
+        <td>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <button class="btn btn-secondary btn-view-kit" data-partid="${escapeHtml(kit.part_id)}">Voir</button>
+    <button class="btn btn-primary btn-sync-kit" data-partid="${escapeHtml(kit.part_id)}">Synchroniser</button>
+  </div>
+</td>
       </tr>
     `).join("");
 
@@ -227,6 +256,15 @@ function bindKitButtons() {
       const partId = btn.getAttribute("data-partid");
       state.selectedPartId = partId;
       await loadKitDetail(partId);
+      els.kitDetailSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  document.querySelectorAll(".btn-sync-kit").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const partId = btn.getAttribute("data-partid");
+      state.selectedPartId = partId;
+      await syncKit(partId);
       els.kitDetailSection.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
@@ -286,6 +324,10 @@ function bindEvents() {
   els.kitSearchInput.addEventListener("input", () => {
     loadKits();
   });
+  els.syncSelectedKitBtn.addEventListener("click", async () => {
+  if (!state.selectedPartId) return;
+  await syncKit(state.selectedPartId);
+});
 }
 
 async function init() {

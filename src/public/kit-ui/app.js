@@ -239,7 +239,7 @@ function openImageModal(imageUrl) {
         data-xlarge-url="${escapeHtml(xlargeUrl)}"
         aria-label="Agrandir l'image">
         <img class="kit-card-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(component.product_name)}">
-        <span class="kit-card-image-hint">Cliquer pour agrandir</span>
+        <span class="kit-card-image-zoom" aria-hidden="true">🔍</span>
       </button>
     `
     : `<div class="kit-card-no-image">Aucune image</div>`}
