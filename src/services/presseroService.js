@@ -304,6 +304,12 @@ async function resolveProductByName(productName) {
 
     const images = extractProductImages(details);
 
+    console.log("EXTRACTED PRODUCT IMAGES:", {
+  productId,
+  productImageLargeUrl: images.productImageLargeUrl,
+  productImageXlargeUrl: images.productImageXlargeUrl
+});
+
 return {
   found: true,
   productId: String(productId),
