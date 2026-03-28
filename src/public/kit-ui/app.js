@@ -168,6 +168,38 @@
   return views;
 }
 
+async function addCurrentKitToCart() {
+  if (!state.selectedPartId) return;
+
+  const componentsPayload = state.filteredComponents
+    .map(component => ({
+      componentId: component.component_id,
+      quantity: Number(state.componentQuantities[component.component_id] || 0)
+    }))
+    .filter(item => item.quantity > 0);
+
+  if (!componentsPayload.length) {
+    alert("Aucun composant avec quantité à ajouter au panier.");
+    return;
+  }
+
+  const url = `${config.apiBase}/api/public/kits/${encodeURIComponent(state.selectedPartId)}/add-to-cart`;
+
+  const data = await fetchJson(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      email: config.email,
+      components: componentsPayload
+    })
+  });
+
+  alert(`Ajout au panier réussi. ${data.addedCount} composant(s) ajouté(s).`);
+  closeSelectedKit();
+}
+
   function applyLanguageFilter() {
     if (state.languageView === "ALL") {
       state.filteredComponents = [...state.visibleComponents];
@@ -511,11 +543,21 @@
     }
 
     const addToCartBtn = document.getElementById("addToCartBtn");
-    if (addToCartBtn) {
-      addToCartBtn.addEventListener("click", () => {
-        alert("Étape suivante : brancher la route add-to-cart.");
-      });
+if (addToCartBtn) {
+  addToCartBtn.addEventListener("click", async () => {
+    try {
+      addToCartBtn.disabled = true;
+      addToCartBtn.textContent = "Ajout en cours...";
+      await addCurrentKitToCart();
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Erreur lors de l'ajout au panier.");
+    } finally {
+      addToCartBtn.disabled = false;
+      addToCartBtn.textContent = "Ajouter au panier";
     }
+  });
+}
   }
 
   function render() {

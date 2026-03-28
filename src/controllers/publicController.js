@@ -2,6 +2,7 @@ const kitRepository = require("../repositories/kitRepository");
 const presseroService = require("../services/presseroService");
 const { filterVisibleComponents, getVisibleLangsFromGroups } = require("../utils/visibilityUtils");
 const presseroPricingService = require("../services/presseroPricingService");
+const presseroCartService = require("../services/presseroCartService");
 
 async function getVisibleKitByPartId(req, res, next) {
   try {
@@ -138,6 +139,95 @@ async function searchVisibleKits(req, res, next) {
     next(err);
   }
 }
+
+async function addVisibleKitToCart(req, res, next) {
+  try {
+    const { partId } = req.params;
+    const email = String(req.body.email || "").trim();
+    const requestedComponents = Array.isArray(req.body.components) ? req.body.components : [];
+
+    if (!email) {
+      return res.status(400).json({
+        ok: false,
+        error: "Le champ email est obligatoire"
+      });
+    }
+
+    const kit = await kitRepository.getKitByPartId(partId);
+
+    if (!kit) {
+      return res.status(404).json({
+        ok: false,
+        error: "Kit introuvable"
+      });
+    }
+
+    const userInfo = await presseroService.getUserGroupsByEmail(email);
+
+    if (!userInfo.found) {
+      return res.status(404).json({
+        ok: false,
+        error: "Utilisateur introuvable",
+        email
+      });
+    }
+
+    const visibleComponents = filterVisibleComponents(kit.components, userInfo.groups);
+
+    const requestedMap = new Map(
+      requestedComponents.map(item => [
+        String(item.componentId || "").trim(),
+        Number(item.quantity || 0)
+      ])
+    );
+
+    const componentsToAdd = visibleComponents
+      .map(component => {
+        const componentId = String(component.component_id || "").trim();
+        const quantity = Number(requestedMap.get(componentId) || 0);
+
+        return {
+          component,
+          quantity
+        };
+      })
+      .filter(item => item.quantity > 0 && item.component.product_id);
+
+    if (!componentsToAdd.length) {
+      return res.status(400).json({
+        ok: false,
+        error: "Aucun composant à ajouter au panier"
+      });
+    }
+
+    const results = [];
+
+    for (const item of componentsToAdd) {
+      const addResult = await presseroCartService.addProductToCart(
+        userInfo.userId,
+        item.component,
+        item.quantity
+      );
+
+      results.push({
+        componentId: item.component.component_id,
+        productId: item.component.product_id,
+        quantity: item.quantity,
+        cartId: addResult.cartId
+      });
+    }
+
+    res.json({
+      ok: true,
+      message: "Kit ajouté au panier avec succès",
+      addedCount: results.length,
+      results
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function priceVisibleKitByPartId(req, res, next) {
   try {
     const { partId } = req.params;
@@ -227,5 +317,6 @@ async function priceVisibleKitByPartId(req, res, next) {
 module.exports = {
   getVisibleKitByPartId,
   priceVisibleKitByPartId,
-  searchVisibleKits
+  searchVisibleKits,
+  addVisibleKitToCart
 };
