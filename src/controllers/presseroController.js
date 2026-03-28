@@ -182,6 +182,72 @@ async function getPendingComponents(req, res, next) {
     next(err);
   }
 }
+const kitRepository = require("../repositories/kitRepository");
+const presseroService = require("../services/presseroService");
+
+async function syncAllKits(req, res, next) {
+  try {
+    const limit = Math.max(1, Number(req.query.limit || 5000));
+    const kits = await kitRepository.getAllKitsDetailed();
+
+    const selectedKits = kits.slice(0, limit);
+
+    let kitsProcessed = 0;
+    let componentsProcessed = 0;
+    let okCount = 0;
+    let partialOkCount = 0;
+    let notFoundCount = 0;
+    let errorCount = 0;
+
+    for (const kit of selectedKits) {
+      kitsProcessed += 1;
+
+      for (const component of (kit.components || [])) {
+        componentsProcessed += 1;
+
+        const result = await presseroService.resolveProductByName(component.product_name);
+
+        await kitRepository.updateComponentSyncData(component.id, {
+          productId: result.productId || null,
+          productIsActive: result.productIsActive || 0,
+          allowedGroupsJson: result.allowedGroupsJson || null,
+          productImageLargeUrl: result.productImageLargeUrl || null,
+          productImageXlargeUrl: result.productImageXlargeUrl || null,
+          lastSyncStatus: result.lastSyncStatus,
+          lastSyncMessage: result.lastSyncMessage
+        });
+
+        if (result.lastSyncStatus === "OK") okCount += 1;
+        else if (result.lastSyncStatus === "PARTIAL_OK") partialOkCount += 1;
+        else if (result.lastSyncStatus === "NOT_FOUND") notFoundCount += 1;
+        else errorCount += 1;
+      }
+    }
+
+    res.json({
+      ok: true,
+      summary: {
+        requestedLimit: limit,
+        kitsProcessed,
+        componentsProcessed,
+        okCount,
+        partialOkCount,
+        notFoundCount,
+        errorCount
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  syncKitByPartId,
+  syncPendingComponents,
+  getPendingComponents,
+  getComponentsByStatus,
+  syncAllKits
+};
 
 async function getComponentsByStatus(req, res, next) {
   try {

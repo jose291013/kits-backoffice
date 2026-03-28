@@ -15,6 +15,7 @@ const els = {
   pendingTableBody: document.getElementById("pendingTableBody"),
   syncPendingBtn: document.getElementById("syncPendingBtn"),
   syncSelectedKitBtn: document.getElementById("syncSelectedKitBtn"),
+  syncAllKitsBtn: document.getElementById("syncAllKitsBtn"),
 
   kitSearchInput: document.getElementById("kitSearchInput"),
   kitsTableBody: document.getElementById("kitsTableBody"),
@@ -67,6 +68,30 @@ async function syncPendingComponents() {
     els.pendingSummary.innerHTML = `
       <strong>Synchronisation terminée</strong><br>
       Composants traités : <strong>${data.summary.componentsFound}</strong><br>
+      OK : <strong>${data.summary.okCount}</strong><br>
+      PARTIAL_OK : <strong>${data.summary.partialOkCount}</strong><br>
+      NOT_FOUND : <strong>${data.summary.notFoundCount}</strong><br>
+      ERROR : <strong>${data.summary.errorCount}</strong>
+    `;
+
+    await refreshAll();
+  } catch (err) {
+    els.pendingSummary.textContent = err.message;
+  }
+}
+
+async function syncAllKits() {
+  try {
+    els.pendingSummary.textContent = "Resynchronisation globale en cours...";
+
+    const data = await fetchJson("/api/pressero/sync-all-kits?limit=5000", {
+      method: "POST"
+    });
+
+    els.pendingSummary.innerHTML = `
+      <strong>Resynchronisation globale terminée</strong><br>
+      Kits traités : <strong>${data.summary.kitsProcessed}</strong><br>
+      Composants traités : <strong>${data.summary.componentsProcessed}</strong><br>
       OK : <strong>${data.summary.okCount}</strong><br>
       PARTIAL_OK : <strong>${data.summary.partialOkCount}</strong><br>
       NOT_FOUND : <strong>${data.summary.notFoundCount}</strong><br>
@@ -320,6 +345,7 @@ function bindEvents() {
   els.importExcelBtn.addEventListener("click", importExcel);
   els.exportExcelBtn.addEventListener("click", exportExcel);
   els.syncPendingBtn.addEventListener("click", syncPendingComponents);
+  els.syncAllKitsBtn.addEventListener("click", syncAllKits);
 
   els.kitSearchInput.addEventListener("input", () => {
     loadKits();
