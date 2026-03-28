@@ -183,7 +183,7 @@ async function getAllKitComponentsForExport() {
   );
 }
 
-async function insertComponent(kitId, component) {
+async function insertComponent(data) {
   const result = await run(
     `
     INSERT INTO kit_components (
@@ -209,25 +209,25 @@ async function insertComponent(kitId, component) {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
-      kitId,
-      component.component_id || null,
-      component.product_name || null,
-      component.lang_code || null,
-      component.default_component_qty || 0,
-      component.sort_order || 0,
-      component.is_active ?? 1,
-      component.product_id || null,
-      component.product_is_active || 0,
-      component.allowed_groups_json || null,
-      component.q2_standard_quotation || null,
-      component.q3_height || null,
-      component.q4_width || null,
-      component.presserso_id_number || null,
-      component.product_image_large_url || null,
-      component.product_image_xlarge_url || null,
-      component.source_hash || null,
-      component.last_sync_status || null,
-      component.last_sync_message || null
+      data.kitId,
+      data.componentId || null,
+      data.productName || null,
+      data.langCode || null,
+      data.defaultComponentQty || 0,
+      data.sortOrder || 0,
+      data.isActive ?? 1,
+      data.productId || null,
+      data.productIsActive || 0,
+      data.allowedGroupsJson || null,
+      data.q2StandardQuotation || null,
+      data.q3Height || null,
+      data.q4Width || null,
+      data.pressersoIdNumber || null,
+      data.productImageLargeUrl || null,
+      data.productImageXlargeUrl || null,
+      data.sourceHash || null,
+      data.lastSyncStatus || null,
+      data.lastSyncMessage || null
     ]
   );
 
@@ -486,100 +486,103 @@ async function saveImportedKits(kits) {
 
   for (const kit of kits) {
     const kitId = await upsertKit({
-      partId: kit.partId,
-      kitName: kit.partId,
-      defaultKitQty: kit.defaultKitQty || 1,
-      isActive: 1,
-      lastImportedAt: importedAt
-    });
+  partId: kit.part_id,
+  kitName: kit.kit_name,
+  defaultKitQty: kit.default_kit_qty || 1,
+  isActive: 1,
+  lastImportedAt: importedAt
+});
 
     const importedComponentIds = [];
 
     const components = Array.isArray(kit.components) ? kit.components : [];
 
     for (let i = 0; i < components.length; i += 1) {
-      const component = components[i];
-      const sortOrder = i + 1;
-      const sourceHash = buildComponentSourceHash(component);
+  const component = components[i];
+  const sortOrder = i + 1;
+  const sourceHash = buildComponentSourceHash(component);
 
-      importedComponentIds.push(component.componentId);
+  importedComponentIds.push(component.component_id);
 
-      const existing = await getComponentByKitIdAndComponentId(kitId, component.componentId);
+  const existing = await getComponentByKitIdAndComponentId(kitId, component.component_id);
 
-      if (!existing) {
-        await insertComponent({
-          kitId,
-          componentId: component.componentId,
-          productName: component.productName,
-          langCode: component.langCode,
-          defaultComponentQty: component.defaultComponentQty,
-          sortOrder,
-          isActive: 1,
-          productId: null,
-          productIsActive: 0,
-          allowedGroupsJson: null,
-          q2StandardQuotation: component.q2StandardQuotation,
-          q3Height: component.q3Height,
-          q4Width: component.q4Width,
-          pressersoIdNumber: component.pressersoIdNumber || null,
-          sourceHash,
-          lastSyncStatus: "TO_RESYNC",
-          lastSyncMessage: "Nouveau composant importé, synchronisation requise"
-        });
+  if (!existing) {
+    await insertComponent({
+      kitId,
+      componentId: component.component_id,
+      productName: component.product_name,
+      langCode: component.lang_code,
+      defaultComponentQty: component.default_component_qty,
+      sortOrder,
+      isActive: 1,
+      productId: null,
+      productIsActive: 0,
+      allowedGroupsJson: null,
+      q2StandardQuotation: component.q2_standard_quotation,
+      q3Height: component.q3_height,
+      q4Width: component.q4_width,
+      pressersoIdNumber: component.presserso_id_number || null,
+      productImageLargeUrl: component.product_image_large_url || null,
+      productImageXlargeUrl: component.product_image_xlarge_url || null,
+      sourceHash,
+      lastSyncStatus: "TO_RESYNC",
+      lastSyncMessage: "Nouveau composant importé, synchronisation requise"
+    });
 
-        componentsSaved += 1;
-        componentsCreated += 1;
-        continue;
-      }
+    componentsSaved += 1;
+    componentsCreated += 1;
+    continue;
+  }
 
-      const hasChanged = existing.source_hash !== sourceHash;
+  const hasChanged = existing.source_hash !== sourceHash;
 
-      if (hasChanged) {
-        await updateComponentById(existing.id, {
-          productName: component.productName,
-          langCode: component.langCode,
-          defaultComponentQty: component.defaultComponentQty,
-          sortOrder,
-          isActive: 1,
-          q2StandardQuotation: component.q2StandardQuotation,
-          q3Height: component.q3Height,
-          q4Width: component.q4Width,
-          pressersoIdNumber: component.pressersoIdNumber || null,
-          sourceHash,
-          lastSyncStatus: "TO_RESYNC",
-          lastSyncMessage: "Composant modifié, resynchronisation requise"
-        });
+  if (hasChanged) {
+    await updateComponentById(existing.id, {
+      productName: component.product_name,
+      langCode: component.lang_code,
+      defaultComponentQty: component.default_component_qty,
+      sortOrder,
+      isActive: 1,
+      q2StandardQuotation: component.q2_standard_quotation,
+      q3Height: component.q3_height,
+      q4Width: component.q4_width,
+      pressersoIdNumber: component.presserso_id_number || null,
+      sourceHash,
+      lastSyncStatus: "TO_RESYNC",
+      lastSyncMessage: "Composant modifié, resynchronisation requise"
+    });
 
-        // On invalide aussi les anciennes données synchronisées
-        await updateComponentSyncData(existing.id, {
-          productId: null,
-          productIsActive: 0,
-          allowedGroupsJson: null,
-          lastSyncStatus: "TO_RESYNC",
-          lastSyncMessage: "Composant modifié, resynchronisation requise"
-        });
+    await updateComponentSyncData(existing.id, {
+      productId: null,
+      productIsActive: 0,
+      allowedGroupsJson: null,
+      productImageLargeUrl: null,
+      productImageXlargeUrl: null,
+      lastSyncStatus: "TO_RESYNC",
+      lastSyncMessage: "Composant modifié, resynchronisation requise"
+    });
 
-        componentsSaved += 1;
-        componentsUpdated += 1;
-      } else {
-        await updateComponentById(existing.id, {
-          productName: component.productName,
-          langCode: component.langCode,
-          defaultComponentQty: component.defaultComponentQty,
-          sortOrder,
-          isActive: 1,
-          q2StandardQuotation: component.q2StandardQuotation,
-          q3Height: component.q3Height,
-          q4Width: component.q4Width,
-          pressersoIdNumber: component.pressersoIdNumber || null,
-          sourceHash,
-          lastSyncStatus: existing.last_sync_status,
-          lastSyncMessage: existing.last_sync_message
-        });
+    componentsSaved += 1;
+    componentsUpdated += 1;
+  } else {
+    await updateComponentById(existing.id, {
+      productName: component.product_name,
+      langCode: component.lang_code,
+      defaultComponentQty: component.default_component_qty,
+      sortOrder,
+      isActive: 1,
+      q2StandardQuotation: component.q2_standard_quotation,
+      q3Height: component.q3_height,
+      q4Width: component.q4_width,
+      pressersoIdNumber: component.presserso_id_number || null,
+      sourceHash,
+      lastSyncStatus: existing.last_sync_status,
+      lastSyncMessage: existing.last_sync_message
+    });
 
-        componentsUnchanged += 1;
-      }
-    }
+    componentsUnchanged += 1;
+  }
+}
 
     const beforeDeactivate = await getComponentsByKitId(kitId);
     const activeBefore = beforeDeactivate.filter(c => c.is_active === 1).length;
