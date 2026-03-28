@@ -197,7 +197,7 @@ async function addCurrentKitToCart() {
   });
 
   alert(`Ajout au panier réussi. ${data.addedCount} composant(s) ajouté(s).`);
-  closeSelectedKit();
+window.location.reload();
 }
 
   function applyLanguageFilter() {
