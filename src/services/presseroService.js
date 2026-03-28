@@ -47,8 +47,12 @@ async function authenticate() {
     return cachedToken;
   }
 
+  const url = `${env.presseroBaseUrl}/api/V2/Authentication`;
+
+  console.log("AUTH URL:", url);
+
   const response = await axios.post(
-    `${env.presseroBaseUrl}/api/V2/Authentication`,
+    url,
     {
       Username: env.presseroUsername,
       Password: env.presseroPassword,
