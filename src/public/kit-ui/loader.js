@@ -38,13 +38,17 @@
     root.setAttribute("data-kit-mounted", "1");
     root.innerHTML = "";
 
-    const iframe = document.createElement("iframe");
-    iframe.src =
+    let src =
       baseUrl +
-      "/kit-ui?partId=" + encodeURIComponent(partId) +
-      "&email=" + encodeURIComponent(email) +
+      "/kit-ui?email=" + encodeURIComponent(email) +
       "&apiBase=" + encodeURIComponent(baseUrl);
 
+    if (partId) {
+      src += "&partId=" + encodeURIComponent(partId);
+    }
+
+    const iframe = document.createElement("iframe");
+    iframe.src = src;
     iframe.style.width = "100%";
     iframe.style.minHeight = "1600px";
     iframe.style.border = "none";
@@ -65,14 +69,14 @@
     const email = getEmailFromPage(root);
 
     console.log("KIT LOADER DEBUG", {
-      partId: partId,
-      email: email,
-      scriptSrc: scriptSrc,
-      baseUrl: baseUrl,
+      partId,
+      email,
+      scriptSrc,
+      baseUrl,
       rootHtml: root.outerHTML
     });
 
-    if (!partId || !baseUrl || !email) {
+    if (!baseUrl || !email) {
       return false;
     }
 
@@ -99,7 +103,7 @@
         const root = document.getElementById("kitApp");
         if (root && !root.getAttribute("data-kit-mounted")) {
           root.innerHTML =
-            '<div style="padding:20px;border:1px solid #ddd;border-radius:12px;background:#fff;">Configuration incomplète : PartID, baseUrl ou email utilisateur introuvable.</div>';
+            '<div style="padding:20px;border:1px solid #ddd;border-radius:12px;background:#fff;">Configuration incomplète : baseUrl ou email utilisateur introuvable.</div>';
         }
       }
     }, 250);
