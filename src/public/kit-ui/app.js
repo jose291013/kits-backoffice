@@ -84,36 +84,41 @@
 }
 
   function openImageModal(imageUrl) {
-    if (!imageUrl) return;
+  if (!imageUrl) return;
 
-    let modal = document.getElementById("kitImageModal");
+  let modal = document.getElementById("kitImageModal");
 
-    if (!modal) {
-      modal = document.createElement("div");
-      modal.id = "kitImageModal";
-      modal.className = "kit-image-modal";
-      modal.innerHTML = `
-        <div class="kit-image-modal-backdrop"></div>
-        <div class="kit-image-modal-content">
-          <button type="button" class="kit-image-modal-close" aria-label="Fermer">×</button>
-          <img class="kit-image-modal-img" src="" alt="Image agrandie">
-        </div>
-      `;
-      document.body.appendChild(modal);
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "kitImageModal";
+    modal.className = "kit-image-modal";
+    modal.innerHTML = `
+      <div class="kit-image-modal-backdrop"></div>
+      <div class="kit-image-modal-content">
+        <button type="button" class="kit-image-modal-close" aria-label="Fermer">×</button>
+        <img class="kit-image-modal-img" src="" alt="Image agrandie">
+      </div>
+    `;
+    document.body.appendChild(modal);
 
-      modal.querySelector(".kit-image-modal-backdrop").addEventListener("click", () => {
-        modal.classList.remove("open");
-      });
+    const closeModal = () => {
+      modal.classList.remove("open");
+    };
 
-      modal.querySelector(".kit-image-modal-close").addEventListener("click", () => {
-        modal.classList.remove("open");
-      });
-    }
+    modal.querySelector(".kit-image-modal-backdrop").addEventListener("click", closeModal);
+    modal.querySelector(".kit-image-modal-close").addEventListener("click", closeModal);
 
-    const img = modal.querySelector(".kit-image-modal-img");
-    img.src = imageUrl;
-    modal.classList.add("open");
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && modal.classList.contains("open")) {
+        closeModal();
+      }
+    });
   }
+
+  const img = modal.querySelector(".kit-image-modal-img");
+  img.src = imageUrl;
+  modal.classList.add("open");
+}
 
   async function loadKitSearch() {
     const url =
