@@ -358,16 +358,26 @@ async function deleteKit(partId) {
   try {
     els.kitDetailBox.innerHTML = `Suppression du kit <strong>${escapeHtml(partId)}</strong> en cours...`;
 
-    await fetchJson(`/api/admin/kits/${encodeURIComponent(partId)}`, {
+    const data = await fetchJson(`/api/admin/kits/${encodeURIComponent(partId)}`, {
       method: "DELETE"
     });
 
     state.selectedPartId = "";
-    els.kitDetailBox.innerHTML = `<strong>Kit supprimé avec succès :</strong><br>${escapeHtml(partId)}`;
 
-    await refreshAll();
+    els.kitDetailBox.innerHTML = `
+      <strong>${escapeHtml(data.message || "Kit supprimé avec succès")}</strong><br>
+      ${escapeHtml(partId)}
+    `;
+
+    els.kitDetailTableBody.innerHTML =
+      `<tr><td colspan="7" class="table-empty">Aucun composant</td></tr>`;
+
+    await loadDashboard();
+    await loadComponentsToTreat();
+    await loadKits();
   } catch (err) {
-    els.kitDetailBox.textContent = err.message;
+    console.error("DELETE KIT ERROR:", err);
+    els.kitDetailBox.innerHTML = `<strong>Erreur :</strong><br>${escapeHtml(err.message)}`;
   }
 }
 

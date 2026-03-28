@@ -245,21 +245,22 @@ window.location.reload();
   let pricingTimer = null;
 
   function requestPricing() {
-    clearTimeout(pricingTimer);
-    state.pricingLoading = true;
-    render();
+  clearTimeout(pricingTimer);
+  state.pricingLoading = true;
+  render();
 
-    pricingTimer = setTimeout(async () => {
-      try {
-        await loadPricing();
-      } catch (err) {
-        console.error(err);
-      } finally {
-        state.pricingLoading = false;
-        render();
-      }
-    }, 250);
-  }
+  pricingTimer = setTimeout(async () => {
+    try {
+      await loadPricing();
+    } catch (err) {
+      console.error("PRICING ERROR:", err);
+      alert(err.message || "Erreur lors du calcul du prix.");
+    } finally {
+      state.pricingLoading = false;
+      render();
+    }
+  }, 250);
+}
 
   function setKitQuantity(value) {
     state.kitQuantity = Math.max(0, Number(value || 0));

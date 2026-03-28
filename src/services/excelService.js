@@ -40,7 +40,7 @@ function toNumberSafe(value, fallback = 0) {
 
 function dimToTenths(value) {
   const num = toNumberSafe(value, 0);
-  return String(Math.round(num * 10));
+  return String(Math.round(num));
 }
 
 async function parseExcel(filePath) {
