@@ -24,6 +24,25 @@ function normalizeCellValue(value) {
   return String(value).trim();
 }
 
+function toStringSafe(value) {
+  return String(normalizeCellValue(value) || "").trim();
+}
+
+function toNumberSafe(value, fallback = 0) {
+  const raw = normalizeCellValue(value);
+  if (raw === "" || raw === null || raw === undefined) return fallback;
+
+  const normalized = String(raw).replace(",", ".").trim();
+  const num = Number(normalized);
+
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function dimToTenths(value) {
+  const num = toNumberSafe(value, 0);
+  return String(Math.round(num * 10));
+}
+
 async function parseExcel(filePath) {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
@@ -33,7 +52,7 @@ async function parseExcel(filePath) {
 
   const headers = [];
   worksheet.getRow(1).eachCell((cell, colNumber) => {
-    headers[colNumber] = String(normalizeCellValue(cell.value) || "").trim();
+    headers[colNumber] = toStringSafe(cell.value);
   });
 
   const rows = [];
@@ -57,48 +76,87 @@ function buildKitsFromRows(rows) {
   const kitsMap = new Map();
 
   rows.forEach((row, index) => {
-    const partId =
-      String(row.PARTID || row.PartID || row.part_id || "").trim();
+    const partId = toStringSafe(
+      row["Part ID"] ||
+      row["PARTID"] ||
+      row["PartID"] ||
+      row["part_id"]
+    );
 
     if (!partId) return;
 
-    const componentId =
-      String(row.ComponentID || row.COMPONENTID || row.component_id || row.ProductName || "").trim();
+    const kitName = toStringSafe(
+      row["Name"] ||
+      row["KitName"] ||
+      row["kit_name"] ||
+      partId
+    ) || partId;
 
-    const productName =
-      String(row.ProductName || row.PRODUCTNAME || componentId || "").trim();
+    const componentId = toStringSafe(
+      row["Component ID"] ||
+      row["COMPONENTID"] ||
+      row["ComponentID"] ||
+      row["component_id"]
+    );
 
-    const langCode =
-      String(row.LangCode || row.LANGCODE || row.lang_code || "").trim();
+    if (!componentId) return;
 
-    const defaultComponentQty = Number(
-      row.DefaultComponentQty || row.DEFAULTCOMPONENTQTY || row.default_component_qty || 1
-    ) || 1;
+    const productName = componentId;
 
-    const defaultKitQty = Number(
-      row.DefaultKitQty || row.DEFAULTKITQTY || row.default_kit_qty || 1
-    ) || 1;
+    const langCode = toStringSafe(
+      row["Lang / Taal"] ||
+      row["LangCode"] ||
+      row["lang_code"]
+    );
 
-    const q2StandardQuotation = String(
-      row.Q2StandardQuotation || row.q2_standard_quotation || row["Standard quotation"] || ""
-    ).trim();
+    const defaultComponentQty = toNumberSafe(
+      row["Quantity"] ||
+      row["DefaultComponentQty"] ||
+      row["default_component_qty"],
+      1
+    );
 
-    const q3Height = String(
-      row.Q3Height || row.q3_height || row.Height || ""
-    ).trim();
+    const defaultKitQty = toNumberSafe(
+      row["DefaultKitQty"] ||
+      row["default_kit_qty"],
+      1
+    );
 
-    const q4Width = String(
-      row.Q4Width || row.q4_width || row.Width || ""
-    ).trim();
+    const q2StandardQuotation = toStringSafe(
+      row["Numéro unique price motor = Q2 (automatique)"] ||
+      row["Q2StandardQuotation"] ||
+      row["q2_standard_quotation"] ||
+      row["STD quotation MP"]
+    );
 
-    const pressersoIdNumber = String(
-      row.PressersoIdNumber || row.presserso_id_number || row["Id Number"] || ""
-    ).trim();
+    const q3Height = toStringSafe(
+      row["Height_NEW"] ||
+      row["Height"] ||
+      row["Q3Height"] ||
+      row["q3_height"]
+    )
+      ? dimToTenths(row["Height_NEW"] || row["Height"] || row["Q3Height"] || row["q3_height"])
+      : "";
+
+    const q4Width = toStringSafe(
+      row["Width_NEW"] ||
+      row["Width"] ||
+      row["Q4Width"] ||
+      row["q4_width"]
+    )
+      ? dimToTenths(row["Width_NEW"] || row["Width"] || row["Q4Width"] || row["q4_width"])
+      : "";
+
+    const pressersoIdNumber = toStringSafe(
+      row["Pressero ID number"] ||
+      row["presserso_id_number"] ||
+      row["PressersoIdNumber"]
+    );
 
     if (!kitsMap.has(partId)) {
       kitsMap.set(partId, {
         part_id: partId,
-        kit_name: String(row.KitName || row.kit_name || partId).trim(),
+        kit_name: kitName,
         default_kit_qty: defaultKitQty,
         is_active: 1,
         components: []
