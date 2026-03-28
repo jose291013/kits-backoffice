@@ -475,6 +475,17 @@ async function countComponentsByStatus(status) {
 }
 
 async function saveImportedKits(kits) {
+  if (!Array.isArray(kits) || kits.length === 0) {
+  return {
+    importedAt: new Date().toISOString(),
+    kitsSaved: 0,
+    componentsSaved: 0,
+    componentsCreated: 0,
+    componentsUpdated: 0,
+    componentsUnchanged: 0,
+    componentsDisabled: 0
+  };
+}
   const importedAt = new Date().toISOString();
 
   let kitsSaved = 0;
@@ -584,15 +595,7 @@ async function saveImportedKits(kits) {
   }
 }
 
-    const beforeDeactivate = await getComponentsByKitId(kitId);
-    const activeBefore = beforeDeactivate.filter(c => c.is_active === 1).length;
-
-    await deactivateMissingComponents(kitId, importedComponentIds);
-
-    const afterDeactivate = await getComponentsByKitId(kitId);
-    const activeAfter = afterDeactivate.filter(c => c.is_active === 1).length;
-
-    componentsDisabled += Math.max(0, activeBefore - activeAfter);
+    void importedComponentIds;
 
     kitsSaved += 1;
   }
@@ -606,6 +609,39 @@ async function saveImportedKits(kits) {
     componentsUnchanged,
     componentsDisabled
   };
+}
+
+async function deleteKitByPartId(partId) {
+  const kit = await get(
+    `
+    SELECT id
+    FROM kits
+    WHERE part_id = ?
+    `,
+    [partId]
+  );
+
+  if (!kit) {
+    return { deleted: false, reason: "NOT_FOUND" };
+  }
+
+  await run(
+    `
+    DELETE FROM kit_components
+    WHERE kit_id = ?
+    `,
+    [kit.id]
+  );
+
+  await run(
+    `
+    DELETE FROM kits
+    WHERE id = ?
+    `,
+    [kit.id]
+  );
+
+  return { deleted: true };
 }
 
 module.exports = {
@@ -626,5 +662,6 @@ module.exports = {
   countComponentsByStatus,
   getAllKitComponentsForExport,
   saveImportedKits,
+  deleteKitByPartId,
   updateComponentSyncData
 };

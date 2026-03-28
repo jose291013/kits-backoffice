@@ -264,6 +264,7 @@ async function loadKits() {
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <button class="btn btn-secondary btn-view-kit" data-partid="${escapeHtml(kit.part_id)}">Voir</button>
     <button class="btn btn-primary btn-sync-kit" data-partid="${escapeHtml(kit.part_id)}">Synchroniser</button>
+    <button class="btn btn-danger btn-delete-kit" data-partid="${escapeHtml(kit.part_id)}">Supprimer</button>
   </div>
 </td>
       </tr>
@@ -284,6 +285,13 @@ function bindKitButtons() {
       els.kitDetailSection.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
+
+  document.querySelectorAll(".btn-delete-kit").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    const partId = btn.getAttribute("data-partid");
+    await deleteKit(partId);
+  });
+});
 
   document.querySelectorAll(".btn-sync-kit").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -338,6 +346,28 @@ async function refreshAll() {
 
   if (state.selectedPartId) {
     await loadKitDetail(state.selectedPartId);
+  }
+}
+
+async function deleteKit(partId) {
+  const ok = window.confirm(
+    `Voulez-vous vraiment supprimer le kit suivant ?\n\n${partId}\n\nCette action supprimera aussi tous ses composants.`
+  );
+  if (!ok) return;
+
+  try {
+    els.kitDetailBox.innerHTML = `Suppression du kit <strong>${escapeHtml(partId)}</strong> en cours...`;
+
+    await fetchJson(`/api/admin/kits/${encodeURIComponent(partId)}`, {
+      method: "DELETE"
+    });
+
+    state.selectedPartId = "";
+    els.kitDetailBox.innerHTML = `<strong>Kit supprimé avec succès :</strong><br>${escapeHtml(partId)}`;
+
+    await refreshAll();
+  } catch (err) {
+    els.kitDetailBox.textContent = err.message;
   }
 }
 

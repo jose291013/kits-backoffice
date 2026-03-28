@@ -195,6 +195,11 @@ button, input {
   border: 1px solid var(--border);
 }
 
+.btn-danger {
+  background: #b42318;
+  color: #fff;
+}
+
 .message-box,
 .detail-summary {
   margin-top: 16px;

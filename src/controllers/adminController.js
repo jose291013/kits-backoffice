@@ -62,6 +62,39 @@ async function exportExcel(req, res, next) {
   }
 }
 
+const kitRepository = require("../repositories/kitRepository");
+
+async function deleteKit(req, res, next) {
+  try {
+    const partId = String(req.params.partId || "").trim();
+
+    if (!partId) {
+      return res.status(400).json({
+        ok: false,
+        error: "PartID obligatoire"
+      });
+    }
+
+    const result = await kitRepository.deleteKitByPartId(partId);
+
+    if (!result.deleted) {
+      return res.status(404).json({
+        ok: false,
+        error: "Kit introuvable"
+      });
+    }
+
+    res.json({
+      ok: true,
+      message: "Kit supprimé avec succès",
+      partId
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
+  deleteKit,
   exportExcel
 };
