@@ -1,7 +1,15 @@
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
+const fs = require("fs");
 
-const dbPath = path.join(__dirname, "../../data.sqlite");
+const dbDir = process.env.SQLITE_DIR || path.join(__dirname, "../../");
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+const dbPath = path.join(dbDir, "data.sqlite");
+console.log("SQLITE DB PATH =", dbPath);
+
 const db = new sqlite3.Database(dbPath);
 
 db.serialize(() => {
@@ -51,8 +59,9 @@ db.serialize(() => {
       summary_json TEXT
     )
   `);
+});
 
-  db.all(`PRAGMA table_info(kit_components)`, [], (err, columns) => {
+db.all(`PRAGMA table_info(kit_components)`, [], (err, columns) => {
   if (err) {
     console.error("Erreur PRAGMA kit_components:", err.message);
     return;
@@ -89,7 +98,6 @@ db.serialize(() => {
       }
     });
   }
-});
 });
 
 module.exports = db;
