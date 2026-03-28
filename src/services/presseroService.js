@@ -48,7 +48,7 @@ async function authenticate() {
   }
 
   const response = await axios.post(
-    `${env.presseroBaseUrl}/api/public/authenticate`,
+    `${env.presseroBaseUrl}/api/V2/Authentication`,
     {
       Username: env.presseroUsername,
       Password: env.presseroPassword,
