@@ -1,22 +1,9 @@
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
+const express = require("express");
+const importController = require("../controllers/importController");
+const upload = require("../middlewares/uploadExcel");
 
-const uploadsDir = path.join(__dirname, "../../uploads");
+const router = express.Router();
 
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+router.post("/excel", upload.single("file"), importController.importExcel);
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  }
-});
-
-const upload = multer({ storage });
-
-module.exports = upload;
+module.exports = router;
