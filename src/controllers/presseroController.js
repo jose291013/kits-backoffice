@@ -182,8 +182,7 @@ async function getPendingComponents(req, res, next) {
     next(err);
   }
 }
-const kitRepository = require("../repositories/kitRepository");
-const presseroService = require("../services/presseroService");
+
 
 async function syncAllKits(req, res, next) {
   try {
