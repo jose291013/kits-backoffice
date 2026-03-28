@@ -183,27 +183,7 @@ async function getAllKitComponentsForExport() {
   );
 }
 
-async function insertComponent({
-  kitId,
-  componentId,
-  productName,
-  langCode,
-  defaultComponentQty,
-  sortOrder,
-  isActive = 1,
-  productId = null,
-  productIsActive = 0,
-  allowedGroupsJson = null,
-  q2StandardQuotation = null,
-  q3Height = null,
-  q4Width = null,
-  pressersoIdNumber = null,
-  productImageLargeUrl = null,
-  productImageXlargeUrl = null,
-  sourceHash = null,
-  lastSyncStatus = null,
-  lastSyncMessage = null
-}) {
+async function insertComponent(kitId, component) {
   const result = await run(
     `
     INSERT INTO kit_components (
@@ -226,29 +206,28 @@ async function insertComponent({
       source_hash,
       last_sync_status,
       last_sync_message
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       kitId,
-      componentId,
-      productName,
-      langCode,
-      defaultComponentQty,
-      sortOrder,
-      isActive,
-      productId,
-      productIsActive,
-      allowedGroupsJson,
-      q2StandardQuotation,
-      q3Height,
-      q4Width,
-      pressersoIdNumber,
-      productImageLargeUrl,
-      productImageXlargeUrl,
-      sourceHash,
-      lastSyncStatus,
-      lastSyncMessage
+      component.component_id || null,
+      component.product_name || null,
+      component.lang_code || null,
+      component.default_component_qty || 0,
+      component.sort_order || 0,
+      component.is_active ?? 1,
+      component.product_id || null,
+      component.product_is_active || 0,
+      component.allowed_groups_json || null,
+      component.q2_standard_quotation || null,
+      component.q3_height || null,
+      component.q4_width || null,
+      component.presserso_id_number || null,
+      component.product_image_large_url || null,
+      component.product_image_xlarge_url || null,
+      component.source_hash || null,
+      component.last_sync_status || null,
+      component.last_sync_message || null
     ]
   );
 
