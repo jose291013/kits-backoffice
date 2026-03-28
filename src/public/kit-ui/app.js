@@ -76,8 +76,12 @@
   }
 
   function buildComponentImageUrl(component) {
-    return component.product_image_large_url || component.product_image_xlarge_url || "";
-  }
+  return (
+    component.product_image_large_url ||
+    component.product_image_xlarge_url ||
+    ""
+  );
+}
 
   function openImageModal(imageUrl) {
     if (!imageUrl) return;
@@ -136,28 +140,28 @@
   }
 
   function getAvailableLanguageViews() {
-    const langs = [...new Set(
-      state.visibleComponents
-        .map(c => String(c.lang_code || "").trim())
-        .filter(Boolean)
-    )];
+  const langs = [...new Set(
+    state.visibleComponents
+      .map(c => String(c.lang_code || "").trim())
+      .filter(Boolean)
+  )];
 
-    const views = [{ key: "ALL", label: "Tout afficher" }];
+  const views = [{ key: "ALL", label: "Tout afficher" }];
 
-    if (langs.includes("FR") || langs.includes("UNI")) {
-      views.push({ key: "FR_UNI", label: "FR + UNI" });
-    }
-
-    if (langs.includes("NL") || langs.includes("UNI")) {
-      views.push({ key: "NL_UNI", label: "NL + UNI" });
-    }
-
-    if (langs.includes("BIL") || langs.includes("UNI")) {
-      views.push({ key: "BIL_UNI", label: "BIL + UNI" });
-    }
-
-    return views;
+  if (langs.includes("FR")) {
+    views.push({ key: "FR_UNI", label: "FR + UNI" });
   }
+
+  if (langs.includes("NL")) {
+    views.push({ key: "NL_UNI", label: "NL + UNI" });
+  }
+
+  if (langs.includes("BIL")) {
+    views.push({ key: "BIL_UNI", label: "BIL + UNI" });
+  }
+
+  return views;
+}
 
   function applyLanguageFilter() {
     if (state.languageView === "ALL") {
@@ -313,6 +317,11 @@
   function buildDetailView() {
     const pricingMap = getPricingMap();
     const languageViews = getAvailableLanguageViews();
+    console.log("KIT COMPONENT IMAGE DEBUG", {
+  componentId: component.component_id,
+  large: component.product_image_large_url,
+  xlarge: component.product_image_xlarge_url
+});
 
     return `
       <div class="kit-detail-shell">
@@ -367,20 +376,24 @@
 
             return `
               <article class="kit-card">
-                <div class="kit-card-image-wrap">
-                  ${imageUrl
-                    ? `
-                      <button
-                        type="button"
-                        class="kit-card-image-button"
-                        data-xlarge-url="${escapeHtml(xlargeUrl)}"
-                        aria-label="Agrandir l'image">
-                        <img class="kit-card-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(component.product_name)}">
-                        <span class="kit-card-image-zoom" aria-hidden="true">🔍</span>
-                      </button>
-                    `
-                    : `<div class="kit-card-no-image">Aucune image</div>`}
-                </div>
+               <div class="kit-card-image-wrap">
+  ${imageUrl
+    ? `
+      <button
+        type="button"
+        class="kit-card-image-button"
+        data-xlarge-url="${escapeHtml(xlargeUrl)}"
+        aria-label="Agrandir l'image">
+        <img
+          class="kit-card-image"
+          src="${escapeHtml(imageUrl)}"
+          alt="${escapeHtml(component.product_name)}"
+          loading="lazy">
+        <span class="kit-card-image-zoom" aria-hidden="true">🔍</span>
+      </button>
+    `
+    : `<div class="kit-card-no-image">Aucune image</div>`}
+</div>
 
                 <div class="kit-card-body">
                   <div class="kit-card-title">${escapeHtml(component.product_name)}</div>
