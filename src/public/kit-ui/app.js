@@ -315,131 +315,126 @@
   }
 
   function buildDetailView() {
-    const pricingMap = getPricingMap();
-    const languageViews = getAvailableLanguageViews();
-    console.log("KIT COMPONENT IMAGE DEBUG", {
-  componentId: component.component_id,
-  large: component.product_image_large_url,
-  xlarge: component.product_image_xlarge_url
-});
+  const pricingMap = getPricingMap();
+  const languageViews = getAvailableLanguageViews();
 
-    return `
-      <div class="kit-detail-shell">
-        <section class="kit-header">
-          <div>
-            <h1 class="kit-title">${escapeHtml(state.selectedKit.kit_name)}</h1>
-            <div class="kit-meta">
-              <div><strong>PartID :</strong> ${escapeHtml(state.selectedKit.part_id)}</div>
-              <div><strong>Utilisateur :</strong> ${escapeHtml(config.email)}</div>
-            </div>
+  return `
+    <div class="kit-detail-shell">
+      <section class="kit-header">
+        <div>
+          <h1 class="kit-title">${escapeHtml(state.selectedKit.kit_name)}</h1>
+          <div class="kit-meta">
+            <div><strong>PartID :</strong> ${escapeHtml(state.selectedKit.part_id)}</div>
+            <div><strong>Utilisateur :</strong> ${escapeHtml(config.email)}</div>
+          </div>
+        </div>
+
+        <div class="kit-header-side">
+          <div class="kit-qty-box">
+            <label for="kitQuantityInput">Quantité de kits</label>
+            <input id="kitQuantityInput" class="qty-input" type="number" min="0" step="1" value="${state.kitQuantity}">
           </div>
 
-          <div class="kit-header-side">
-            <div class="kit-qty-box">
-              <label for="kitQuantityInput">Quantité de kits</label>
-              <input id="kitQuantityInput" class="qty-input" type="number" min="0" step="1" value="${state.kitQuantity}">
-            </div>
-
-            <div class="total-box">
-              <div class="total-label">Prix total du kit</div>
-              <div class="total-value">${formatCurrency(state.totalPrice)}</div>
-            </div>
-
-            <div class="kit-header-actions">
-              <button id="closeKitBtn" class="btn btn-secondary" type="button">Fermer</button>
-              <button id="resetAllBtn" class="btn btn-secondary" type="button">Remettre à 0</button>
-            </div>
+          <div class="total-box">
+            <div class="total-label">Prix total du kit</div>
+            <div class="total-value">${formatCurrency(state.totalPrice)}</div>
           </div>
-        </section>
 
-        <section class="kit-search-panel">
-          <div class="language-filters">
-            ${languageViews.map(view => `
-              <button
-                type="button"
-                class="filter-chip ${state.languageView === view.key ? "active" : ""}"
-                data-language-view="${escapeHtml(view.key)}">
-                ${escapeHtml(view.label)}
-              </button>
-            `).join("")}
+          <div class="kit-header-actions">
+            <button id="closeKitBtn" class="btn btn-secondary" type="button">Fermer</button>
+            <button id="resetAllBtn" class="btn btn-secondary" type="button">Remettre à 0</button>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section class="kit-grid">
-          ${state.filteredComponents.map(component => {
-            const componentId = component.component_id;
-            const qty = Number(state.componentQuantities[componentId] || 0);
-            const pricing = pricingMap[componentId];
-            const totalPrice = pricing ? pricing.totalPrice : 0;
-            const imageUrl = buildComponentImageUrl(component);
-            const xlargeUrl = component.product_image_xlarge_url || imageUrl;
+      <section class="kit-search-panel">
+        <div class="language-filters">
+          ${languageViews.map(view => `
+            <button
+              type="button"
+              class="filter-chip ${state.languageView === view.key ? "active" : ""}"
+              data-language-view="${escapeHtml(view.key)}">
+              ${escapeHtml(view.label)}
+            </button>
+          `).join("")}
+        </div>
+      </section>
 
-            return `
-              <article class="kit-card">
-               <div class="kit-card-image-wrap">
-  ${imageUrl
-    ? `
-      <button
-        type="button"
-        class="kit-card-image-button"
-        data-xlarge-url="${escapeHtml(xlargeUrl)}"
-        aria-label="Agrandir l'image">
-        <img
-          class="kit-card-image"
-          src="${escapeHtml(imageUrl)}"
-          alt="${escapeHtml(component.product_name)}"
-          loading="lazy">
-        <span class="kit-card-image-zoom" aria-hidden="true">🔍</span>
-      </button>
-    `
-    : `<div class="kit-card-no-image">Aucune image</div>`}
-</div>
+      <section class="kit-grid">
+        ${state.filteredComponents.map(component => {
+          const componentId = component.component_id;
+          const qty = Number(state.componentQuantities[componentId] || 0);
+          const pricing = pricingMap[componentId];
+          const totalPrice = pricing ? pricing.totalPrice : 0;
+          const imageUrl = buildComponentImageUrl(component);
+          const xlargeUrl = component.product_image_xlarge_url || imageUrl;
 
-                <div class="kit-card-body">
-                  <div class="kit-card-title">${escapeHtml(component.product_name)}</div>
+          return `
+            <article class="kit-card">
+              <div class="kit-card-image-wrap">
+                ${imageUrl
+                  ? `
+                    <button
+                      type="button"
+                      class="kit-card-image-button"
+                      data-xlarge-url="${escapeHtml(xlargeUrl)}"
+                      aria-label="Agrandir l'image">
+                      <img
+                        class="kit-card-image"
+                        src="${escapeHtml(imageUrl)}"
+                        alt="${escapeHtml(component.product_name)}"
+                        loading="lazy">
+                      <span class="kit-card-image-zoom" aria-hidden="true">🔍</span>
+                    </button>
+                  `
+                  : `<div class="kit-card-no-image">Aucune image</div>`}
+              </div>
 
-                  <div class="kit-card-meta">
-                    <div><strong>Composant :</strong> ${escapeHtml(component.component_id)}</div>
-                    <div><strong>PartID :</strong> ${escapeHtml(state.selectedKit.part_id)}</div>
-                    <div><strong>Langue :</strong> ${escapeHtml(component.lang_code)}</div>
-                  </div>
+              <div class="kit-card-body">
+                <div class="kit-card-title">${escapeHtml(component.product_name)}</div>
 
-                  <div class="kit-card-row">
-                    <div class="kit-card-label">Quantité</div>
-                    <input
-                      class="qty-input component-qty-input"
-                      type="number"
-                      min="0"
-                      step="1"
-                      data-component-id="${escapeHtml(componentId)}"
-                      value="${qty}">
-                  </div>
-
-                  <div class="price-box">
-                    <div class="price-label">Prix composant</div>
-                    <div class="price-value">${formatCurrency(totalPrice)}</div>
-                  </div>
+                <div class="kit-card-meta">
+                  <div><strong>Composant :</strong> ${escapeHtml(component.component_id)}</div>
+                  <div><strong>PartID :</strong> ${escapeHtml(state.selectedKit.part_id)}</div>
+                  <div><strong>Langue :</strong> ${escapeHtml(component.lang_code)}</div>
                 </div>
-              </article>
-            `;
-          }).join("")}
-        </section>
 
-        <section class="kit-footer">
-          <div class="footer-total-block">
-            <div class="footer-total-label">Total du kit</div>
-            <div class="footer-total-value">${formatCurrency(state.totalPrice)}</div>
-            <div class="pricing-loading">${state.pricingLoading ? "Mise à jour du prix..." : ""}</div>
-          </div>
+                <div class="kit-card-row">
+                  <div class="kit-card-label">Quantité</div>
+                  <input
+                    class="qty-input component-qty-input"
+                    type="number"
+                    min="0"
+                    step="1"
+                    data-component-id="${escapeHtml(componentId)}"
+                    value="${qty}">
+                </div>
 
-          <div class="footer-actions">
-            <button id="footerCloseBtn" class="btn btn-secondary" type="button">Fermer</button>
-            <button id="addToCartBtn" class="btn btn-primary" type="button">Ajouter au panier</button>
-          </div>
-        </section>
-      </div>
-    `;
-  }
+                <div class="price-box">
+                  <div class="price-label">Prix composant</div>
+                  <div class="price-value">${formatCurrency(totalPrice)}</div>
+                </div>
+              </div>
+            </article>
+          `;
+        }).join("")}
+      </section>
+
+      <section class="kit-footer">
+        <div class="footer-total-block">
+          <div class="footer-total-label">Total du kit</div>
+          <div class="footer-total-value">${formatCurrency(state.totalPrice)}</div>
+          <div class="pricing-loading">${state.pricingLoading ? "Mise à jour du prix..." : ""}</div>
+        </div>
+
+        <div class="footer-actions">
+          <button id="footerCloseBtn" class="btn btn-secondary" type="button">Fermer</button>
+          <button id="addToCartBtn" class="btn btn-primary" type="button">Ajouter au panier</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
 
   function bindSearchEvents() {
     const searchInput = document.getElementById("kitSearchInput");
