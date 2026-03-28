@@ -2,14 +2,11 @@ const axios = require("axios");
 const env = require("../config/env");
 
 let cachedToken = null;
-let cachedTokenAt = null;
+let cachedTokenAt = 0;
+const TOKEN_TTL_MS = 10 * 60 * 1000;
 
-function isTokenStillValid() {
-  if (!cachedToken || !cachedTokenAt) return false;
-  const now = Date.now();
-  const ageMs = now - cachedTokenAt;
-  return ageMs < 50 * 60 * 1000;
-}
+const userGroupsCache = new Map();
+const USER_CACHE_TTL_MS = 5 * 60 * 1000;
 
 function buildAxiosErrorMessage(step, err) {
   const status = err?.response?.status;
@@ -37,70 +34,58 @@ function getTokenHeaders(token) {
 function getRawTokenHeaders(token) {
   return {
     Authorization: token,
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
+    "Accept-Language": "en-US",
+    Accept: "application/json"
   };
 }
 
 async function authenticate() {
-  if (isTokenStillValid()) {
+  const now = Date.now();
+
+  if (cachedToken && (now - cachedTokenAt) < TOKEN_TTL_MS) {
     return cachedToken;
   }
 
-  try {
-    const url = `${env.presseroBaseUrl}/api/v2/Authentication`;
-
-    const payload = {
-      UserName: env.presseroUsername,
+  const response = await axios.post(
+    `${env.presseroBaseUrl}/api/public/authenticate`,
+    {
+      Username: env.presseroUsername,
       Password: env.presseroPassword,
       SubscriberId: env.presseroSubscriberId,
-      ConsumerID: env.presseroConsumerId
-    };
-
-    const response = await axios.post(url, payload, {
-      headers: { "Content-Type": "application/json" }
-    });
-
-    console.log("AUTH RESPONSE:", JSON.stringify(response.data, null, 2));
-
-    const token =
-      (typeof response.data === "string" ? response.data : null) ||
-      response.data?.Token ||
-      response.data?.token ||
-      response.data?.access_token ||
-      response.data?.data?.Token ||
-      response.data?.Data?.Token ||
-      response.data?.AuthToken ||
-      response.data?.authToken;
-
-    if (!token) {
-      throw new Error(`Token introuvable dans la réponse auth: ${JSON.stringify(response.data)}`);
+      ConsumerId: env.presseroConsumerId
+    },
+    {
+      headers: {
+        "Content-Type": "application/json",
+        "Accept-Language": "en-US",
+        Accept: "application/json"
+      }
     }
+  );
 
-    cachedToken = String(token).trim().replace(/^"+|"+$/g, "");
-    cachedTokenAt = Date.now();
+  cachedToken = response.data?.Token || null;
+  cachedTokenAt = now;
 
-    console.log("AUTH TOKEN PREVIEW:", cachedToken.slice(0, 20), "...");
-
-    return cachedToken;
-  } catch (err) {
-    throw new Error(buildAxiosErrorMessage("AUTH", err));
+  if (!cachedToken) {
+    throw new Error("Token Pressero introuvable");
   }
+
+  return cachedToken;
 }
 
 async function postWithAuthRetry(url, body) {
   const token = await authenticate();
 
   try {
-    console.log("TRY AUTH HEADER: Token");
     return await axios.post(url, body, {
       headers: getTokenHeaders(token)
     });
   } catch (err) {
-    console.log("TOKEN FAILED:", err?.response?.status, err?.response?.data);
+    if (err?.response?.status !== 401) {
+      throw err;
+    }
 
-    if (err?.response?.status !== 401) throw err;
-
-    console.log("TRY AUTH HEADER: Raw token");
     return axios.post(url, body, {
       headers: getRawTokenHeaders(token)
     });
@@ -110,12 +95,19 @@ async function postWithAuthRetry(url, body) {
 async function getWithAuthRetry(url) {
   const token = await authenticate();
 
-  console.log("GET DETAILS URL:", url);
-  console.log("GET DETAILS AUTH:", `Token ${token}`);
+  try {
+    return await axios.get(url, {
+      headers: getTokenHeaders(token)
+    });
+  } catch (err) {
+    if (err?.response?.status !== 401) {
+      throw err;
+    }
 
-  return axios.get(url, {
-    headers: getTokenHeaders(token)
-  });
+    return axios.get(url, {
+      headers: getRawTokenHeaders(token)
+    });
+  }
 }
 
 async function findProductByName(productName) {
@@ -130,14 +122,7 @@ async function findProductByName(productName) {
       }
     ];
 
-    console.log("FIND PRODUCT URL:", url);
-    console.log("FIND PRODUCT BODY:", JSON.stringify(body, null, 2));
-    console.log("PRESSERO PRODUCT SITE DOMAIN =", env.presseroProductSiteDomain);
-
     const response = await postWithAuthRetry(url, body);
-
-    console.log("FIND PRODUCT RESPONSE:", JSON.stringify(response.data, null, 2));
-
     const items = response.data?.Items || [];
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -153,11 +138,7 @@ async function findProductByName(productName) {
 async function getProductDetails(productId) {
   try {
     const url = `${env.presseroBaseUrl}/api/site/${env.presseroProductSiteDomain}/Products/${productId}`;
-
     const response = await getWithAuthRetry(url);
-
-    console.log("PRODUCT DETAILS RESPONSE:", JSON.stringify(response.data, null, 2));
-
     return response.data;
   } catch (err) {
     throw new Error(buildAxiosErrorMessage("PRODUCT_DETAILS", err));
@@ -165,81 +146,98 @@ async function getProductDetails(productId) {
 }
 
 async function getUserByEmail(email) {
-  const token = await authenticate();
+  try {
+    const token = await authenticate();
 
-  const url = `${env.presseroBaseUrl}/api/site/${env.presseroProductSiteDomain}/users/?pageNumber=0&pageSize=1&email=${encodeURIComponent(email)}&includeDeleted=false`;
-  console.log("GET USER BY EMAIL URL:", url);
-  console.log("GET USER BY EMAIL HEADERS:", JSON.stringify(getTokenHeaders(token), null, 2));
+    const url = `${env.presseroBaseUrl}/api/site/${env.presseroProductSiteDomain}/users/?pageNumber=0&pageSize=1&email=${encodeURIComponent(email)}&includeDeleted=false`;
 
+    const response = await axios.get(url, {
+      headers: getTokenHeaders(token)
+    });
 
-  const response = await axios.get(url, {
-    headers: getTokenHeaders(token)
-  });
+    const items = response.data?.Items || [];
 
-  const items = response.data?.Items || [];
+    if (!Array.isArray(items) || items.length === 0) {
+      return null;
+    }
 
-  if (!Array.isArray(items) || items.length === 0) {
-    return null;
+    return items[0];
+  } catch (err) {
+    throw new Error(buildAxiosErrorMessage("GET_USER_BY_EMAIL", err));
   }
-
-  return items[0];
 }
 
 async function getUserDetails(userId) {
-  const token = await authenticate();
+  try {
+    const token = await authenticate();
 
-  const url = `${env.presseroBaseUrl}/api/site/${env.presseroProductSiteDomain}/users/${userId}`;
+    const url = `${env.presseroBaseUrl}/api/site/${env.presseroProductSiteDomain}/users/${userId}`;
 
-  const response = await axios.get(url, {
-    headers: getTokenHeaders(token)
-  });
+    const response = await axios.get(url, {
+      headers: getTokenHeaders(token)
+    });
 
-  return response.data;
+    return response.data;
+  } catch (err) {
+    throw new Error(buildAxiosErrorMessage("GET_USER_DETAILS", err));
+  }
 }
 
 async function getUserGroupsByEmail(email) {
-  const user = await getUserByEmail(email);
+  const key = String(email || "").trim().toLowerCase();
+  const now = Date.now();
 
-  if (!user) {
-    return {
-      found: false,
-      email,
-      userId: null,
-      groups: []
-    };
+  const cached = userGroupsCache.get(key);
+  if (cached && (now - cached.at) < USER_CACHE_TTL_MS) {
+    return cached.value;
   }
 
-  const userId = user.UserId || user.userId || null;
+  try {
+    const token = await authenticate();
 
-  if (!userId) {
-    return {
-      found: false,
+    const userLookupUrl = `${env.presseroBaseUrl}/api/site/${env.presseroProductSiteDomain}/users/?pageNumber=0&pageSize=1&email=${encodeURIComponent(email)}&includeDeleted=false`;
+
+    const userLookupResponse = await axios.get(userLookupUrl, {
+      headers: getTokenHeaders(token)
+    });
+
+    const items = userLookupResponse.data?.Items || [];
+
+    if (!items.length) {
+      const result = {
+        found: false,
+        email,
+        userId: null,
+        groups: []
+      };
+
+      userGroupsCache.set(key, { at: now, value: result });
+      return result;
+    }
+
+    const userId = items[0].UserId;
+    const detailsUrl = `${env.presseroBaseUrl}/api/site/${env.presseroProductSiteDomain}/users/${userId}`;
+
+    const detailsResponse = await axios.get(detailsUrl, {
+      headers: getTokenHeaders(token)
+    });
+
+    const result = {
+      found: true,
       email,
-      userId: null,
-      groups: []
+      userId,
+      groups: detailsResponse.data?.Groups || []
     };
+
+    userGroupsCache.set(key, { at: now, value: result });
+    return result;
+  } catch (err) {
+    throw new Error(buildAxiosErrorMessage("GET_USER_GROUPS_BY_EMAIL", err));
   }
-
-  const details = await getUserDetails(userId);
-  const groups = Array.isArray(details?.Groups) ? details.Groups : [];
-
-  return {
-    found: true,
-    email,
-    userId,
-    groups
-  };
 }
 
 function extractProductImages(details) {
   const images = Array.isArray(details?.ImagesUrl) ? details.ImagesUrl : [];
-
-  if (!images.length) {
-    return {
-      productImageLargeUrl: null,
-      productImageXlargeUrl: null
-    };
-  }
 
   const findByKeyword = (keywords) => {
     return images.find(url => {
@@ -248,19 +246,27 @@ function extractProductImages(details) {
     }) || null;
   };
 
-  const xlarge =
+  let xlarge =
     findByKeyword(["xlarge", "_xl", "_xlarge"]) ||
     findByKeyword(["large"]) ||
     findByKeyword(["medium"]) ||
     images[0] ||
     null;
 
-  const large =
+  let large =
     findByKeyword(["large"]) ||
     findByKeyword(["medium"]) ||
     findByKeyword(["small"]) ||
     images[0] ||
     null;
+
+  if (!large) {
+    large = `${env.presseroBaseUrl}/files/defaultImages/default_Product_large.png`;
+  }
+
+  if (!xlarge) {
+    xlarge = `${env.presseroBaseUrl}/files/defaultImages/default_Product_xlarge.png`;
+  }
 
   return {
     productImageLargeUrl: large,
@@ -301,25 +307,18 @@ async function resolveProductByName(productName) {
 
   try {
     const details = await getProductDetails(productId);
-
     const images = extractProductImages(details);
 
-    console.log("EXTRACTED PRODUCT IMAGES:", {
-  productId,
-  productImageLargeUrl: images.productImageLargeUrl,
-  productImageXlargeUrl: images.productImageXlargeUrl
-});
-
-return {
-  found: true,
-  productId: String(productId),
-  productIsActive: details?.IsActive ? 1 : 0,
-  allowedGroupsJson: JSON.stringify(details?.AllowedGroups || []),
-  productImageLargeUrl: images.productImageLargeUrl,
-  productImageXlargeUrl: images.productImageXlargeUrl,
-  lastSyncStatus: "OK",
-  lastSyncMessage: "Synchronisé avec succès"
-};
+    return {
+      found: true,
+      productId: String(productId),
+      productIsActive: details?.IsActive ? 1 : 0,
+      allowedGroupsJson: JSON.stringify(details?.AllowedGroups || []),
+      productImageLargeUrl: images.productImageLargeUrl,
+      productImageXlargeUrl: images.productImageXlargeUrl,
+      lastSyncStatus: "OK",
+      lastSyncMessage: "Synchronisé avec succès"
+    };
   } catch (err) {
     return {
       found: true,
