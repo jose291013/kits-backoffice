@@ -1,33 +1,47 @@
-const { parseExcel } = require("../services/excelService");
-const { groupRowsByKit } = require("../services/kitService");
+const fs = require("fs");
+const excelService = require("../services/excelService");
 const kitRepository = require("../repositories/kitRepository");
 
 async function importExcel(req, res, next) {
+  const file = req.file;
+
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: "Aucun fichier reçu" });
+    if (!file) {
+      return res.status(400).json({
+        ok: false,
+        error: "Aucun fichier reçu"
+      });
     }
 
-    const rows = await parseExcel(req.file.path);
-    const kits = groupRowsByKit(rows);
+    const result = await excelService.parseExcelFile(file.path);
 
-    const saveResult = await kitRepository.saveImportedKits(kits);
+    const saveResult = await kitRepository.saveImportedKits(result.kits, {
+      filename: file.originalname
+    });
 
     res.json({
-  ok: true,
-  filename: req.file.originalname,
-  rows: rows.length,
-  kitsFound: kits.length,
-  kitsSaved: saveResult.kitsSaved,
-  componentsSaved: saveResult.componentsSaved,
-  componentsCreated: saveResult.componentsCreated,
-  componentsUpdated: saveResult.componentsUpdated,
-  componentsUnchanged: saveResult.componentsUnchanged,
-  componentsDisabled: saveResult.componentsDisabled,
-  importedAt: saveResult.importedAt
-});
+      ok: true,
+      filename: file.originalname,
+      rows: result.rows,
+      kitsFound: result.kitsFound,
+      kitsSaved: saveResult.kitsSaved,
+      componentsSaved: saveResult.componentsSaved,
+      componentsCreated: saveResult.componentsCreated,
+      componentsUpdated: saveResult.componentsUpdated,
+      componentsUnchanged: saveResult.componentsUnchanged,
+      componentsDisabled: saveResult.componentsDisabled,
+      importedAt: saveResult.importedAt
+    });
   } catch (err) {
     next(err);
+  } finally {
+    if (file?.path) {
+      fs.unlink(file.path, unlinkErr => {
+        if (unlinkErr) {
+          console.error("Erreur suppression fichier upload:", unlinkErr.message);
+        }
+      });
+    }
   }
 }
 
