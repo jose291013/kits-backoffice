@@ -72,6 +72,72 @@ async function getVisibleKitByPartId(req, res, next) {
     next(err);
   }
 }
+
+async function searchVisibleKits(req, res, next) {
+  try {
+    const email = String(req.query.email || "").trim();
+    const q = String(req.query.q || "").trim().toLowerCase();
+
+    if (!email) {
+      return res.status(400).json({
+        ok: false,
+        error: "Le paramètre email est obligatoire"
+      });
+    }
+
+    const userInfo = await presseroService.getUserGroupsByEmail(email);
+
+    if (!userInfo.found) {
+      return res.status(404).json({
+        ok: false,
+        error: "Utilisateur introuvable",
+        email
+      });
+    }
+
+    const allKits = await kitRepository.getAllKitsDetailed();
+    const visibleLangs = getVisibleLangsFromGroups(userInfo.groups);
+
+    const kits = allKits
+      .map(kit => {
+        const visibleComponents = filterVisibleComponents(kit.components || [], userInfo.groups);
+
+        return {
+          id: kit.id,
+          part_id: kit.part_id,
+          kit_name: kit.kit_name,
+          default_kit_qty: kit.default_kit_qty,
+          visibleComponentCount: visibleComponents.length,
+          availableLangs: [...new Set(
+            visibleComponents
+              .map(c => String(c.lang_code || "").trim())
+              .filter(Boolean)
+          )],
+          hasVisibleComponents: visibleComponents.length > 0
+        };
+      })
+      .filter(kit => kit.hasVisibleComponents)
+      .filter(kit => {
+        if (!q) return true;
+        return (
+          String(kit.part_id || "").toLowerCase().includes(q) ||
+          String(kit.kit_name || "").toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => String(a.part_id).localeCompare(String(b.part_id)));
+
+    res.json({
+      ok: true,
+      email,
+      userGroups: userInfo.groups,
+      visibleLangs,
+      count: kits.length,
+      kits
+    });
+  } catch (err) {
+    next(err);
+  }
+}
 async function priceVisibleKitByPartId(req, res, next) {
   try {
     const { partId } = req.params;
@@ -160,5 +226,6 @@ async function priceVisibleKitByPartId(req, res, next) {
 
 module.exports = {
   getVisibleKitByPartId,
-  priceVisibleKitByPartId
+  priceVisibleKitByPartId,
+  searchVisibleKits
 };
