@@ -45,18 +45,29 @@ async function addProductToCart(userId, component, quantity) {
 
   const payload = {
     ProductId: component.product_id,
-    Quantities: [
-      Number(quantity || 0),
-      Number(component.q2_standard_quotation || 0),
-      Number(component.q3_height || 0),
-      Number(component.q4_width || 0)
-    ],
-    Options: []
+    ShipTo: "",
+    ShippingMethod: "",
+    PricingParameters: {
+      Quantities: [
+        Number(quantity || 0),
+        Number(component.q2_standard_quotation || 0),
+        Number(component.q3_height || 0),
+        Number(component.q4_width || 0)
+      ],
+      Options: []
+    },
+    ItemName: component.product_name || "Via API",
+    Notes: `Ajout kit ${component.component_id || ""}`.trim()
   };
+
+  console.log("ADD TO CART URL:", url);
+  console.log("ADD TO CART PAYLOAD:", JSON.stringify(payload, null, 2));
 
   const response = await axios.post(url, payload, {
     headers: getTokenHeaders(token)
   });
+
+  console.log("ADD TO CART RESPONSE:", JSON.stringify(response.data, null, 2));
 
   return {
     cartId,
