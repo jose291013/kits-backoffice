@@ -62,8 +62,6 @@ async function exportExcel(req, res, next) {
   }
 }
 
-const kitRepository = require("../repositories/kitRepository");
-
 async function deleteKit(req, res, next) {
   try {
     const partId = String(req.params.partId || "").trim();
