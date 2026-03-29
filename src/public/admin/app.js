@@ -266,43 +266,51 @@ async function loadKits() {
       return;
     }
 
-    els.kitsTableBody.innerHTML = kits.map(kit => `
-      <tr>
-        <td>${kit.id}</td>
-        <td>${escapeHtml(kit.part_id)}</td>
-        <td>${escapeHtml(kit.kit_name)}</td>
-        <td>${kit.default_kit_qty}</td>
-        <td>${kit.is_active === 1 ? "Oui" : "Non"}</td>
-        <td>${escapeHtml(kit.last_imported_at || "")}</td>
-        <td>
-  <div class="kit-action-buttons">
-    <button
-      class="btn btn-icon btn-secondary btn-view-kit"
-      data-partid="${escapeHtml(partId)}"
-      title="Voir"
-      aria-label="Voir">
-      👁️
-    </button>
+    els.kitsTableBody.innerHTML = kits.map(kit => {
+  const partId = kit.part_id || kit.partId || kit.PartId || "";
+  const kitName = kit.kit_name || kit.kitName || kit.KitName || partId;
+  const defaultKitQty = kit.default_kit_qty || kit.defaultKitQty || 1;
+  const isActive = kit.is_active ?? kit.isActive ?? 0;
+  const lastImportedAt = kit.last_imported_at || kit.lastImportedAt || "";
 
-    <button
-      class="btn btn-icon btn-primary btn-sync-kit"
-      data-partid="${escapeHtml(partId)}"
-      title="Synchroniser"
-      aria-label="Synchroniser">
-      ↻
-    </button>
+  return `
+    <tr>
+      <td>${kit.id}</td>
+      <td>${escapeHtml(partId)}</td>
+      <td>${escapeHtml(kitName)}</td>
+      <td>${defaultKitQty}</td>
+      <td>${isActive === 1 ? "Oui" : "Non"}</td>
+      <td>${escapeHtml(lastImportedAt)}</td>
+      <td>
+        <div class="kit-action-buttons">
+          <button
+            class="btn btn-icon btn-secondary btn-view-kit"
+            data-partid="${escapeHtml(partId)}"
+            title="Voir"
+            aria-label="Voir">
+            👁️
+          </button>
 
-    <button
-      class="btn btn-icon btn-danger btn-delete-kit"
-      data-partid="${escapeHtml(partId)}"
-      title="Supprimer"
-      aria-label="Supprimer">
-      🗑️
-    </button>
-  </div>
-</td>
-      </tr>
-    `).join("");
+          <button
+            class="btn btn-icon btn-primary btn-sync-kit"
+            data-partid="${escapeHtml(partId)}"
+            title="Synchroniser"
+            aria-label="Synchroniser">
+            ↻
+          </button>
+
+          <button
+            class="btn btn-icon btn-danger btn-delete-kit"
+            data-partid="${escapeHtml(partId)}"
+            title="Supprimer"
+            aria-label="Supprimer">
+            🗑️
+          </button>
+        </div>
+      </td>
+    </tr>
+  `;
+}).join("");
 
     bindKitButtons();
   } catch (err) {
