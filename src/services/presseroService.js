@@ -116,7 +116,7 @@ async function getWithAuthRetry(url) {
 
 async function findProductByName(productName) {
   try {
-    const url = `${env.presseroBaseUrl}/api/site/${env.presseroProductSiteDomain}/products/?pageNumber=0&pageSize=1&includeDeleted=True`;
+    const url = `${env.presseroBaseUrl}/api/site/${env.presseroProductSiteDomain}/products/?pageNumber=0&pageSize=20&includeDeleted=True`;
 
     const body = [
       {
@@ -132,6 +132,24 @@ async function findProductByName(productName) {
     if (!Array.isArray(items) || items.length === 0) {
       return null;
     }
+
+    const normalize = (value) =>
+      String(value || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+
+    const target = normalize(productName);
+
+    const exact = items.find(item => normalize(item.ProductName) === target);
+    if (exact) {
+      return exact;
+    }
+
+    console.log("FIND PRODUCT NO EXACT MATCH:", {
+      searched: productName,
+      candidates: items.map(item => item.ProductName)
+    });
 
     return items[0];
   } catch (err) {
