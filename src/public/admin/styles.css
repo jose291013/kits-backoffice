@@ -139,6 +139,38 @@ button, input {
   flex-wrap: wrap;
 }
 
+.kit-action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-icon {
+  min-width: 48px;
+  height: 48px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.btn-icon.btn-secondary {
+  background: #eef2f7;
+  color: #1f2937;
+}
+
+.btn-icon.btn-primary {
+  background: #2563eb;
+  color: #fff;
+}
+
+.btn-icon.btn-danger {
+  background: #c62828;
+  color: #fff;
+}
+
 .upload-box {
   display: flex;
   justify-content: space-between;

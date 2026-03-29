@@ -275,10 +275,30 @@ async function loadKits() {
         <td>${kit.is_active === 1 ? "Oui" : "Non"}</td>
         <td>${escapeHtml(kit.last_imported_at || "")}</td>
         <td>
-  <div style="display:flex; gap:8px; flex-wrap:wrap;">
-    <button class="btn btn-secondary btn-view-kit" data-partid="${escapeHtml(kit.part_id)}">Voir</button>
-    <button class="btn btn-primary btn-sync-kit" data-partid="${escapeHtml(kit.part_id)}">Synchroniser</button>
-    <button class="btn btn-danger btn-delete-kit" data-partid="${escapeHtml(kit.part_id)}">Supprimer</button>
+  <div class="kit-action-buttons">
+    <button
+      class="btn btn-icon btn-secondary btn-view-kit"
+      data-partid="${escapeHtml(partId)}"
+      title="Voir"
+      aria-label="Voir">
+      👁️
+    </button>
+
+    <button
+      class="btn btn-icon btn-primary btn-sync-kit"
+      data-partid="${escapeHtml(partId)}"
+      title="Synchroniser"
+      aria-label="Synchroniser">
+      ↻
+    </button>
+
+    <button
+      class="btn btn-icon btn-danger btn-delete-kit"
+      data-partid="${escapeHtml(partId)}"
+      title="Supprimer"
+      aria-label="Supprimer">
+      🗑️
+    </button>
   </div>
 </td>
       </tr>
