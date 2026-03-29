@@ -44,15 +44,22 @@
   };
 
   async function fetchJson(url, options = {}) {
-    const res = await fetch(url, options);
-    const data = await res.json();
+  const res = await fetch(`${url}`, options);
+  const text = await res.text();
 
-    if (!res.ok || data.ok === false) {
-      throw new Error(data.error || "Erreur API");
-    }
-
-    return data;
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(`Réponse non JSON (${res.status}) : ${text.slice(0, 300)}`);
   }
+
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.error || data.message || `Erreur API (${res.status})`);
+  }
+
+  return data;
+}
 
   function getPricingMap() {
     const map = {};

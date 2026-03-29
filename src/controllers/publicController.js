@@ -146,6 +146,11 @@ async function addVisibleKitToCart(req, res, next) {
     const email = String(req.body.email || "").trim();
     const requestedComponents = Array.isArray(req.body.components) ? req.body.components : [];
 
+    console.log("ADD TO CART REQUEST BODY:", JSON.stringify(req.body, null, 2));
+    console.log("ADD TO CART PARTID:", partId);
+    console.log("ADD TO CART EMAIL:", email);
+    console.log("ADD TO CART REQUESTED COMPONENTS:", JSON.stringify(requestedComponents, null, 2));
+
     if (!email) {
       return res.status(400).json({
         ok: false,
@@ -162,7 +167,16 @@ async function addVisibleKitToCart(req, res, next) {
       });
     }
 
+    console.log("ADD TO CART KIT FOUND:", JSON.stringify({
+      id: kit.id,
+      part_id: kit.part_id,
+      kit_name: kit.kit_name,
+      componentsCount: Array.isArray(kit.components) ? kit.components.length : 0
+    }, null, 2));
+
     const userInfo = await presseroService.getUserGroupsByEmail(email);
+
+    console.log("ADD TO CART USER INFO:", JSON.stringify(userInfo, null, 2));
 
     if (!userInfo.found) {
       return res.status(404).json({
@@ -174,12 +188,32 @@ async function addVisibleKitToCart(req, res, next) {
 
     const visibleComponents = filterVisibleComponents(kit.components, userInfo.groups);
 
+    console.log("ADD TO CART VISIBLE COMPONENTS COUNT:", visibleComponents.length);
+    console.log("ADD TO CART VISIBLE COMPONENTS SAMPLE:", JSON.stringify(
+      visibleComponents.slice(0, 10).map(component => ({
+        componentId: component.component_id,
+        productId: component.product_id,
+        langCode: component.lang_code,
+        q2: component.q2_standard_quotation,
+        q3: component.q3_height,
+        q4: component.q4_width
+      })),
+      null,
+      2
+    ));
+
     const requestedMap = new Map(
       requestedComponents.map(item => [
         String(item.componentId || "").trim(),
         Number(item.quantity || 0)
       ])
     );
+
+    console.log("ADD TO CART REQUESTED MAP:", JSON.stringify(
+      Array.from(requestedMap.entries()),
+      null,
+      2
+    ));
 
     const componentsToAdd = visibleComponents
       .map(component => {
@@ -193,6 +227,19 @@ async function addVisibleKitToCart(req, res, next) {
       })
       .filter(item => item.quantity > 0 && item.component.product_id);
 
+    console.log("ADD TO CART COMPONENTS TO ADD:", JSON.stringify(
+      componentsToAdd.map(item => ({
+        componentId: item.component.component_id,
+        productId: item.component.product_id,
+        quantity: item.quantity,
+        q2: item.component.q2_standard_quotation,
+        q3: item.component.q3_height,
+        q4: item.component.q4_width
+      })),
+      null,
+      2
+    ));
+
     if (!componentsToAdd.length) {
       return res.status(400).json({
         ok: false,
@@ -203,11 +250,23 @@ async function addVisibleKitToCart(req, res, next) {
     const results = [];
 
     for (const item of componentsToAdd) {
+      console.log("ADD TO CART SINGLE ITEM START:", JSON.stringify({
+        componentId: item.component.component_id,
+        productId: item.component.product_id,
+        quantity: item.quantity
+      }, null, 2));
+
       const addResult = await presseroCartService.addProductToCart(
         userInfo.userId,
         item.component,
         item.quantity
       );
+
+      console.log("ADD TO CART SINGLE ITEM RESULT:", JSON.stringify({
+        componentId: item.component.component_id,
+        cartId: addResult.cartId,
+        raw: addResult.raw
+      }, null, 2));
 
       results.push({
         componentId: item.component.component_id,
@@ -224,6 +283,7 @@ async function addVisibleKitToCart(req, res, next) {
       results
     });
   } catch (err) {
+    console.error("ADD TO CART ERROR:", err);
     next(err);
   }
 }
