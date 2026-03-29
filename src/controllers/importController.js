@@ -13,28 +13,26 @@ async function importExcel(req, res, next) {
       });
     }
 
-    const rows = await excelService.parseExcel(file.path);
+    const result = await excelService.parseExcelFile(file.path);
 
-    const saveResult = await kitRepository.saveImportedKits(result.kits, {
-      filename: file.originalname
-    });
+    const saveResult = await kitRepository.saveImportedKits(result.kits);
 
     res.json({
-  ok: true,
-  filename: file.originalname,
-  rows: result.rows,
-  kitsFound: result.kitsFound,
-  kitsSaved: saveResult.kitsSaved,
-  componentsSaved: saveResult.componentsSaved,
-  componentsCreated: saveResult.componentsCreated,
-  componentsUpdated: saveResult.componentsUpdated,
-  componentsUnchanged: saveResult.componentsUnchanged,
-  componentsDisabled: saveResult.componentsDisabled,
-  importedAt: saveResult.importedAt,
-  message: result.kitsFound === 0
-    ? "Aucun kit détecté, aucune modification effectuée."
-    : "Import terminé avec succès."
-});
+      ok: true,
+      filename: file.originalname,
+      rows: result.rows,
+      kitsFound: result.kitsFound,
+      kitsSaved: saveResult.kitsSaved,
+      componentsSaved: saveResult.componentsSaved,
+      componentsCreated: saveResult.componentsCreated,
+      componentsUpdated: saveResult.componentsUpdated,
+      componentsUnchanged: saveResult.componentsUnchanged,
+      componentsDisabled: saveResult.componentsDisabled,
+      importedAt: saveResult.importedAt,
+      message: result.kitsFound === 0
+        ? "Aucun kit détecté, aucune modification effectuée."
+        : "Import terminé avec succès."
+    });
   } catch (err) {
     next(err);
   } finally {
