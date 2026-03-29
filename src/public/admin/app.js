@@ -288,7 +288,7 @@ async function loadKits() {
             data-partid="${escapeHtml(partId)}"
             title="Voir"
             aria-label="Voir">
-            👁️
+            ⌕
           </button>
 
           <button
@@ -296,7 +296,7 @@ async function loadKits() {
             data-partid="${escapeHtml(partId)}"
             title="Synchroniser"
             aria-label="Synchroniser">
-            ↻
+            ↺
           </button>
 
           <button
@@ -304,7 +304,7 @@ async function loadKits() {
             data-partid="${escapeHtml(partId)}"
             title="Supprimer"
             aria-label="Supprimer">
-            🗑️
+            🗑
           </button>
         </div>
       </td>
