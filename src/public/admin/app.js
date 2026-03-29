@@ -48,10 +48,17 @@ function statusBadge(status) {
 
 async function fetchJson(url, options = {}) {
   const res = await fetch(`${API_BASE}${url}`, options);
-  const data = await res.json();
+  const text = await res.text();
+
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(`Réponse non JSON (${res.status}) pour ${url}`);
+  }
 
   if (!res.ok || data.ok === false) {
-    throw new Error(data.error || "Erreur API");
+    throw new Error(data.error || `Erreur API (${res.status})`);
   }
 
   return data;
@@ -287,11 +294,17 @@ function bindKitButtons() {
   });
 
   document.querySelectorAll(".btn-delete-kit").forEach(btn => {
-  btn.addEventListener("click", async () => {
-    const partId = btn.getAttribute("data-partid");
-    await deleteKit(partId);
+    btn.addEventListener("click", async () => {
+      const partId =
+        btn.getAttribute("data-partid") ||
+        btn.dataset.partid ||
+        "";
+
+      console.log("DELETE KIT CLICKED:", partId, btn.outerHTML);
+
+      await deleteKit(partId);
+    });
   });
-});
 
   document.querySelectorAll(".btn-sync-kit").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -350,15 +363,26 @@ async function refreshAll() {
 }
 
 async function deleteKit(partId) {
+  const safePartId = String(partId || "").trim();
+
+  if (!safePartId) {
+    console.error("DELETE KIT ERROR: partId vide", partId);
+    els.kitDetailBox.innerHTML = `<strong>Erreur :</strong><br>PartID introuvable pour la suppression.`;
+    return;
+  }
+
   const ok = window.confirm(
-    `Voulez-vous vraiment supprimer le kit suivant ?\n\n${partId}\n\nCette action supprimera aussi tous ses composants.`
+    `Voulez-vous vraiment supprimer le kit suivant ?\n\n${safePartId}\n\nCette action supprimera aussi tous ses composants.`
   );
   if (!ok) return;
 
   try {
-    els.kitDetailBox.innerHTML = `Suppression du kit <strong>${escapeHtml(partId)}</strong> en cours...`;
+    els.kitDetailBox.innerHTML = `Suppression du kit <strong>${escapeHtml(safePartId)}</strong> en cours...`;
 
-    const data = await fetchJson(`/api/admin/kits/${encodeURIComponent(partId)}`, {
+    const url = `/api/admin/kits/${encodeURIComponent(safePartId)}`;
+    console.log("DELETE KIT REQUEST:", url);
+
+    const data = await fetchJson(url, {
       method: "DELETE"
     });
 
@@ -366,7 +390,7 @@ async function deleteKit(partId) {
 
     els.kitDetailBox.innerHTML = `
       <strong>${escapeHtml(data.message || "Kit supprimé avec succès")}</strong><br>
-      ${escapeHtml(partId)}
+      ${escapeHtml(safePartId)}
     `;
 
     els.kitDetailTableBody.innerHTML =
