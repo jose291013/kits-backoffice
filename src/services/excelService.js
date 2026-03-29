@@ -186,10 +186,47 @@ async function parseExcelFile(filePath) {
   const rows = await parseExcel(filePath);
   const kits = buildKitsFromRows(rows);
 
+  const seen = new Map();
+  const duplicates = [];
+
+  rows.forEach((row, index) => {
+    const partId = toStringSafe(
+      row["Part ID"] ||
+      row["PARTID"] ||
+      row["PartID"] ||
+      row["part_id"]
+    );
+
+    const componentId = toStringSafe(
+      row["Component ID"] ||
+      row["COMPONENTID"] ||
+      row["ComponentID"] ||
+      row["component_id"]
+    );
+
+    if (!partId || !componentId) return;
+
+    const key = `${partId}__${componentId}`;
+
+    if (seen.has(key)) {
+      duplicates.push({
+        rowNumber: index + 2,
+        partId,
+        componentId,
+        firstSeenRow: seen.get(key)
+      });
+    } else {
+      seen.set(key, index + 2);
+    }
+  });
+
   return {
     rows: rows.length,
     kitsFound: kits.length,
-    kits
+    kits,
+    uniqueKitComponentPairs: seen.size,
+    duplicateCount: duplicates.length,
+    duplicates
   };
 }
 

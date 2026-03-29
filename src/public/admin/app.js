@@ -174,17 +174,24 @@ async function importExcel() {
     }
 
     els.importResult.innerHTML = `
-      <strong>Import terminé</strong><br>
-      Fichier : ${escapeHtml(data.filename)}<br>
-      Lignes : ${data.rows}<br>
-      Kits trouvés : ${data.kitsFound}<br>
-      Kits sauvés : ${data.kitsSaved}<br>
-      Composants créés : ${data.componentsCreated}<br>
-      Composants mis à jour : ${data.componentsUpdated}<br>
-      Composants inchangés : ${data.componentsUnchanged}<br>
-      Composants désactivés : ${data.componentsDisabled}<br>
-      Importé le : ${escapeHtml(data.importedAt)}
-    `;
+  <strong>Import terminé</strong><br>
+  Fichier : ${escapeHtml(data.filename)}<br>
+  Lignes du fichier : ${data.rows}<br>
+  Kits trouvés : ${data.kitsFound}<br>
+  Couples kit + composant distincts : ${data.uniqueKitComponentPairs ?? "-"}<br>
+  Doublons détectés : ${data.duplicateCount ?? 0}<br>
+  Kits sauvés : ${data.kitsSaved}<br>
+  Composants créés : ${data.componentsCreated}<br>
+  Composants mis à jour : ${data.componentsUpdated}<br>
+  Composants inchangés : ${data.componentsUnchanged}<br>
+  Composants désactivés : ${data.componentsDisabled}<br>
+  Importé le : ${escapeHtml(data.importedAt)}
+  ${
+    data.duplicateCount
+      ? `<br><br><strong>Attention :</strong> ${data.duplicateCount} doublon(s) détecté(s) dans le fichier Excel.`
+      : ""
+  }
+`;
 
     await refreshAll();
   } catch (err) {
