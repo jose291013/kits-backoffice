@@ -627,17 +627,17 @@ function toggleSidebar() {
     batches.forEach((b) => {
       const tr = ce("tr");
       tr.innerHTML = `
-        <td>${b.id}</td>
-        <td>${b.import_id || ""}</td>
-        <td>${b.store_code || ""}</td>
-        <td>${statusBadge(b.status)}</td>
-        <td>${b.total_lines || 0}</td>
-        <td>${b.executed_at || ""}</td>
-        <td class="eo-actions">
-          <button class="eo-btn secondary" data-action="items" data-id="${b.id}">Voir items</button>
-          <button class="eo-btn green" data-action="send" data-id="${b.id}">Envoyer</button>
-        </td>
-      `;
+  <td>${b.id}</td>
+  <td>${b.import_id || ""}</td>
+  <td>${b.store_code || ""}</td>
+  <td>${statusBadge(b.status)}</td>
+  <td>${b.total_lines || 0}</td>
+  <td>${b.executed_at || ""}</td>
+  <td>${b.message || ""}</td>
+  <td class="eo-actions">
+    ...
+  </td>
+`;
       tbody.appendChild(tr);
     });
 
@@ -982,16 +982,17 @@ function renderStoreImportResults(res, mode) {
             <div class="eo-table-wrap">
               <table class="eo-table">
                 <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Import</th>
-                    <th>Store</th>
-                    <th>Statut</th>
-                    <th>Lignes</th>
-                    <th>Envoyé le</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
+  <tr>
+    <th>ID</th>
+    <th>Import</th>
+    <th>Store</th>
+    <th>Statut</th>
+    <th>Lignes</th>
+    <th>Envoyé le</th>
+    <th>Message</th>
+    <th>Actions</th>
+  </tr>
+</thead>
                 <tbody id="eo-batches-body"></tbody>
               </table>
             </div>

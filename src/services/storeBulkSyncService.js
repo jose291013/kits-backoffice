@@ -31,10 +31,11 @@ async function syncAllStores() {
 
       ok++;
       results.push({
-        storeCode: store.store_code,
-        status: "OK",
-        result: res.store
-      });
+  storeCode: store.store_code,
+  status: "OK",
+  email: res.store?.presso_user_email || store.presso_user_email || "",
+  message: `Synchronisation OK pour ${store.store_code}`
+});
     } catch (error) {
       failed++;
       results.push({

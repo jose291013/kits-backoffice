@@ -20,6 +20,29 @@ console.log("PRESSERO_CONSUMER_ID exists =", !!PRESSERO_CONSUMER_ID);
 let cachedToken = null;
 let cachedTokenAt = null;
 
+function normalizeScalar(value) {
+  if (value == null) return "";
+
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value).trim();
+  }
+
+  if (typeof value === "object") {
+    if (typeof value.text === "string") return value.text.trim();
+    if (typeof value.result === "string") return value.result.trim();
+    if (typeof value.hyperlink === "string") return value.hyperlink.trim();
+    if (Array.isArray(value.richText)) {
+      return value.richText.map((x) => x.text || "").join("").trim();
+    }
+  }
+
+  return String(value).trim();
+}
+
 async function getAccessToken() {
   const now = Date.now();
 
@@ -361,15 +384,23 @@ async function logSync(syncType, targetKey, status, message, payloadJson, respon
 }
 
 async function syncStoreFromPressero({ storeCode, storeName, pressoUserEmail }) {
+  const safeStoreCode = normalizeScalar(storeCode);
+  const safeStoreName = normalizeScalar(storeName);
+  const safeEmail = normalizeScalar(pressoUserEmail).toLowerCase();
+
+  if (!safeStoreCode || !safeEmail || !safeEmail.includes("@")) {
+    throw new Error(`Email invalide pour le store ${safeStoreCode || "?"}: ${safeEmail || "[vide]"}`);
+  }
+
   try {
-    const userId = await getUserIdByEmail(pressoUserEmail);
+    const userId = await getUserIdByEmail(safeEmail);
     const userInfo = await getUserInfo(userId);
 
     const { storeId, preferredAddress, billingAddress, addresses } =
       await upsertStore({
-        storeCode,
-        storeName,
-        pressoUserEmail,
+        storeCode: safeStoreCode,
+        storeName: safeStoreName,
+        pressoUserEmail: safeEmail,
         userInfo
       });
 
@@ -377,10 +408,10 @@ async function syncStoreFromPressero({ storeCode, storeName, pressoUserEmail }) 
 
     await logSync(
       "ADDRESSBOOK",
-      storeCode,
+      safeStoreCode,
       "OK",
-      `Synchronisation OK pour ${storeCode}`,
-      { storeCode, storeName, pressoUserEmail },
+      `Synchronisation OK pour ${safeStoreCode}`,
+      { storeCode: safeStoreCode, storeName: safeStoreName, pressoUserEmail: safeEmail },
       { userId, addressCount: addresses.length }
     );
 
@@ -398,10 +429,10 @@ async function syncStoreFromPressero({ storeCode, storeName, pressoUserEmail }) 
   } catch (error) {
     await logSync(
       "ADDRESSBOOK",
-      storeCode,
+      safeStoreCode,
       "ERROR",
       error.message,
-      { storeCode, storeName, pressoUserEmail },
+      { storeCode: safeStoreCode, storeName: safeStoreName, pressoUserEmail: safeEmail },
       null
     );
 

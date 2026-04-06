@@ -68,6 +68,29 @@ function pick(row, keys) {
   return null;
 }
 
+function normalizeScalar(value) {
+  if (value == null) return "";
+
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value).trim();
+  }
+
+  if (typeof value === "object") {
+    if (typeof value.text === "string") return value.text.trim();
+    if (typeof value.result === "string") return value.result.trim();
+    if (typeof value.hyperlink === "string") return value.hyperlink.trim();
+    if (Array.isArray(value.richText)) {
+      return value.richText.map((x) => x.text || "").join("").trim();
+    }
+  }
+
+  return String(value).trim();
+}
+
 async function importStoresMaster(filePath, originalFilename = "stores_master.xlsx") {
   const rows = await readRows(filePath);
 
@@ -81,9 +104,9 @@ async function importStoresMaster(filePath, originalFilename = "stores_master.xl
   const details = [];
 
   for (const row of rows) {
-    const storeCode = String(row.data.store_code || "").trim();
-    const storeName = String(row.data.store_name || "").trim();
-    const email = String(row.data.pressero_user_email || "").trim().toLowerCase();
+    const storeCode = normalizeScalar(row.data.store_code);
+    const storeName = normalizeScalar(row.data.store_name);
+    const email = normalizeScalar(row.data.pressero_user_email).toLowerCase();
 
     if (!storeCode || !storeName || !email) {
       errors++;
