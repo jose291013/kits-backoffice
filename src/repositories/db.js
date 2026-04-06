@@ -286,6 +286,36 @@ db.serialize(() => {
     )
   `);
 
+  db.run(`ALTER TABLE order_batches ADD COLUMN need_to_apply_approvals INTEGER DEFAULT 1`, (err) => {
+  if (err && !String(err.message).includes("duplicate column name")) {
+    console.error("Erreur ajout colonne need_to_apply_approvals:", err.message);
+  }
+});
+
+db.run(`ALTER TABLE order_batches ADD COLUMN presso_order_id TEXT`, (err) => {
+  if (err && !String(err.message).includes("duplicate column name")) {
+    console.error("Erreur ajout colonne presso_order_id:", err.message);
+  }
+});
+
+db.run(`ALTER TABLE order_batches ADD COLUMN presso_order_number INTEGER`, (err) => {
+  if (err && !String(err.message).includes("duplicate column name")) {
+    console.error("Erreur ajout colonne presso_order_number:", err.message);
+  }
+});
+
+db.run(`ALTER TABLE order_batches ADD COLUMN presso_order_date TEXT`, (err) => {
+  if (err && !String(err.message).includes("duplicate column name")) {
+    console.error("Erreur ajout colonne presso_order_date:", err.message);
+  }
+});
+
+db.run(`ALTER TABLE excel_import_lines ADD COLUMN need_to_apply_approvals TEXT`, (err) => {
+  if (err && !String(err.message).includes("duplicate column name")) {
+    console.error("Erreur ajout colonne need_to_apply_approvals sur excel_import_lines:", err.message);
+  }
+});
+
   // =========================================================
   // F. LOGS DE SYNCHRO
   // =========================================================
