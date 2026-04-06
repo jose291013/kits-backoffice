@@ -86,6 +86,26 @@
       min-height:100vh;
     }
 
+    .eo-spinner{
+  display:inline-block;
+  width:14px;
+  height:14px;
+  border:2px solid rgba(255,255,255,.45);
+  border-top-color:#fff;
+  border-radius:50%;
+  animation:eoSpin .8s linear infinite;
+  vertical-align:-2px;
+  margin-right:6px;
+}
+.eo-btn.secondary .eo-spinner,
+.eo-btn.yellow .eo-spinner{
+  border:2px solid rgba(17,24,39,.25);
+  border-top-color:#111827;
+}
+@keyframes eoSpin{
+  to{ transform:rotate(360deg); }
+}
+
     .eo-page-title{
       font-size:42px;
       font-weight:800;
@@ -558,21 +578,36 @@ function toggleSidebar() {
         <td>${i.error_rows || 0}</td>
         <td class="eo-actions">
           <button class="eo-btn secondary" data-action="lines" data-id="${i.id}">Voir lignes</button>
-          <button class="eo-btn orange" data-action="build" data-id="${i.id}">Préparer</button>
+          <button class="eo-btn yellow" data-action="build" data-id="${i.id}">Préparer</button>
         </td>
       `;
       tbody.appendChild(tr);
     });
 
     tbody.querySelectorAll("button[data-action='lines']").forEach((btn) => {
-      btn.onclick = () => loadImportLines(btn.dataset.id);
-    });
+  btn.onclick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await loadImportLines(btn.dataset.id);
+    showView("detail-panel");
+  };
+});
 
-    tbody.querySelectorAll("button[data-action='build']").forEach((btn) => {
-      btn.onclick = () => buildImport(btn.dataset.id);
-    });
+tbody.querySelectorAll("button[data-action='build']").forEach((btn) => {
+  btn.onclick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setBusy(btn, true, "Préparation...");
+    try {
+      await buildImport(btn.dataset.id);
+    } finally {
+      setBusy(btn, false);
+    }
+  };
+});
   }
 
+  
   async function loadImportLines(importId) {
     const data = await apiJson(`/backoffice/imports/${importId}/lines`);
     const box = qs("#eo-detail-box");
@@ -635,19 +670,34 @@ function toggleSidebar() {
   <td>${b.executed_at || ""}</td>
   <td>${b.message || ""}</td>
   <td class="eo-actions">
-    ...
+    <button class="eo-btn secondary" data-action="items" data-id="${b.id}">Voir items</button>
+    <button class="eo-btn green" data-action="send" data-id="${b.id}">Envoyer</button>
   </td>
 `;
       tbody.appendChild(tr);
     });
 
     tbody.querySelectorAll("button[data-action='items']").forEach((btn) => {
-      btn.onclick = () => loadBatchItems(btn.dataset.id);
-    });
+  btn.onclick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await loadBatchItems(btn.dataset.id);
+    showView("detail-panel");
+  };
+});
 
-    tbody.querySelectorAll("button[data-action='send']").forEach((btn) => {
-      btn.onclick = () => sendBatch(btn.dataset.id);
-    });
+tbody.querySelectorAll("button[data-action='send']").forEach((btn) => {
+  btn.onclick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setBusy(btn, true, "Envoi...");
+    try {
+      await sendBatch(btn.dataset.id);
+    } finally {
+      setBusy(btn, false);
+    }
+  };
+});
   }
 
   async function loadBatchItems(batchId) {
@@ -746,12 +796,61 @@ await loadStores();
     await loadImports();
   }
 
+  function setBusy(button, busy, busyText = "Traitement...") {
+  if (!button) return;
+
+  if (busy) {
+    button.dataset.originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = `<span class="eo-spinner"></span> ${busyText}`;
+  } else {
+    button.disabled = false;
+    button.innerHTML = button.dataset.originalText || button.innerHTML;
+  }
+}
+
   function exportStoresMaster() {
   window.open(`${API_BASE}/stores/export`, "_blank");
 }
 
 function downloadOrdersTemplate() {
   window.open(`${API_BASE}/imports/template`, "_blank");
+}
+
+async function sendAllReady(button) {
+  setBusy(button, true, "Envoi...");
+  try {
+    const res = await apiJson("/backoffice/submit-all-ready", { method: "POST" });
+    log(`Envoi global: ${JSON.stringify(res)}`, res.success ? "success" : "error");
+    await loadBatches();
+    showView("batches-panel");
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+async function buildAllImports(button) {
+  const data = await apiJson("/backoffice/imports");
+  const imports = (data.imports || []).filter((x) => String(x.status).toUpperCase() === "PREVIEWED");
+
+  if (!imports.length) {
+    log("Aucun import PREVIEWED à préparer.", "info");
+    return;
+  }
+
+  setBusy(button, true, "Préparation...");
+  try {
+    for (const imp of imports) {
+      const res = await apiJson(`/orders/build-from-import/${imp.id}`, { method: "POST" });
+      log(`Préparation import ${imp.id}: ${JSON.stringify(res)}`, res.success ? "success" : "error");
+    }
+
+    await loadImports();
+    await loadBatches();
+    showView("batches-panel");
+  } finally {
+    setBusy(button, false);
+  }
 }
 
 function renderStoreImportResults(res, mode) {
@@ -949,7 +1048,9 @@ function renderStoreImportResults(res, mode) {
           <div class="eo-card">
             <h3>Historique des imports</h3>
             <p class="eo-card-sub">Contrôlez les imports chargés, consultez les lignes détectées et préparez les commandes.</p>
-
+<div class="eo-actions" style="margin-bottom:14px">
+  <button type="button" class="eo-btn yellow" id="eo-btn-build-all-imports">Tout préparer</button>
+</div>
             <div class="eo-table-wrap">
               <table class="eo-table">
                 <thead>
@@ -977,6 +1078,7 @@ function renderStoreImportResults(res, mode) {
             <div class="eo-actions" style="margin-bottom:14px">
               <button class="eo-btn secondary" id="eo-btn-refresh-batches">Rafraîchir</button>
               <button class="eo-btn yellow" id="eo-btn-cleanup-orders">Vider les tests commandes</button>
+              <button type="button" class="eo-btn green" id="eo-btn-send-all-ready">Tout envoyer</button>
             </div>
 
             <div class="eo-table-wrap">
@@ -1021,21 +1123,58 @@ function renderStoreImportResults(res, mode) {
   </div>
 `;
 
-    qs("#eo-btn-import-stores").onclick = async () => {
-      const file = qs("#eo-stores-file").files[0];
-      if (!file) return log("Sélectionnez un fichier magasins", "error");
-      await importStoresMaster(file);
-    };
+    
 
-    qs("#eo-btn-sync-stores").onclick = async () => {
-      await syncAllStores();
-    };
+    qs("#eo-btn-send-all-ready").onclick = async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  await sendAllReady(e.currentTarget);
+};
 
-    qs("#eo-btn-import-orders").onclick = async () => {
-      const file = qs("#eo-orders-file").files[0];
-      if (!file) return log("Sélectionnez un fichier commandes", "error");
-      await uploadOrdersExcel(file);
-    };
+qs("#eo-btn-import-stores").onclick = async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  const btn = e.currentTarget;
+  const file = qs("#eo-stores-file").files[0];
+  if (!file) return log("Sélectionnez un fichier magasins", "error");
+
+  setBusy(btn, true, "Import...");
+  try {
+    await importStoresMaster(file);
+  } finally {
+    setBusy(btn, false);
+  }
+};
+
+qs("#eo-btn-sync-stores").onclick = async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  const btn = e.currentTarget;
+
+  setBusy(btn, true, "Sync...");
+  try {
+    await syncAllStores();
+  } finally {
+    setBusy(btn, false);
+  }
+};
+
+qs("#eo-btn-import-orders").onclick = async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  const btn = e.currentTarget;
+  const file = qs("#eo-orders-file").files[0];
+  if (!file) return log("Sélectionnez un fichier commandes", "error");
+
+  setBusy(btn, true, "Import...");
+  try {
+    await uploadOrdersExcel(file);
+  } finally {
+    setBusy(btn, false);
+  }
+};
+
+    
 
     qs("#eo-btn-template-orders").onclick = (e) => {
   e.preventDefault();
@@ -1047,6 +1186,12 @@ function renderStoreImportResults(res, mode) {
   e.preventDefault();
   e.stopPropagation();
   exportStoresMaster();
+};
+
+qs("#eo-btn-build-all-imports").onclick = async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  await buildAllImports(e.currentTarget);
 };
 
     qs("#eo-btn-refresh-imports").onclick = loadImports;

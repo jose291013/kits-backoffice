@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../repositories/db");
+const { submitBatchToPressero } = require("../services/presseroOrderCreateService");
 
 function dbGet(sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -181,6 +182,46 @@ router.get("/batches/:batchId/items", async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+router.post("/submit-all-ready", async (req, res) => {
+  try {
+    const batches = await dbAll(`
+      SELECT id
+      FROM order_batches
+      WHERE status = 'READY'
+      ORDER BY id ASC
+    `);
+
+    let sent = 0;
+    let failed = 0;
+    const results = [];
+
+    for (const batch of batches) {
+      try {
+        const r = await submitBatchToPressero(batch.id);
+        sent++;
+        results.push({ batchId: batch.id, status: "SENT", result: r });
+      } catch (error) {
+        failed++;
+        results.push({ batchId: batch.id, status: "FAILED", message: error.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      total: batches.length,
+      sent,
+      failed,
+      results
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 router.post("/cleanup-orders", async (req, res) => {
   try {
     await dbRun(`DELETE FROM order_batch_items`);
