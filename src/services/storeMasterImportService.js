@@ -1,0 +1,156 @@
+const db = require("../repositories/db");
+const ExcelJS = require("exceljs");
+
+function dbRun(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) return reject(err);
+      resolve(this);
+    });
+  });
+}
+
+function dbGet(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(row);
+    });
+  });
+}
+
+function normalizeHeader(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+}
+
+async function readRows(filePath) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(filePath);
+
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) throw new Error("Aucune feuille trouvée");
+
+  const headerRow = worksheet.getRow(1);
+  const headers = headerRow.values.slice(1).map(normalizeHeader);
+
+  const rows = [];
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+
+    const values = row.values.slice(1);
+    const obj = {};
+
+    headers.forEach((h, i) => {
+      obj[h] = values[i] ?? null;
+    });
+
+    const hasValue = Object.values(obj).some(
+      (v) => v !== null && String(v).trim() !== ""
+    );
+
+    if (hasValue) {
+      rows.push({ rowNumber, data: obj });
+    }
+  });
+
+  return rows;
+}
+
+function pick(row, keys) {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== "") {
+      return row[key];
+    }
+  }
+  return null;
+}
+
+async function importStoresMaster(filePath, originalFilename = "stores_master.xlsx") {
+  const rows = await readRows(filePath);
+
+  if (!rows.length) {
+    throw new Error("Fichier Excel vide");
+  }
+
+  let created = 0;
+  let updated = 0;
+  let errors = 0;
+  const details = [];
+
+  for (const row of rows) {
+    const storeCode = String(row.data.store_code || "").trim();
+    const storeName = String(row.data.store_name || "").trim();
+    const email = String(row.data.pressero_user_email || "").trim().toLowerCase();
+
+    if (!storeCode || !storeName || !email) {
+      errors++;
+      details.push({
+        rowNumber: row.rowNumber,
+        status: "ERROR",
+        message: "Colonnes obligatoires manquantes"
+      });
+      continue;
+    }
+
+    const existing = await dbGet(
+      `SELECT id FROM stores WHERE store_code = ?`,
+      [storeCode]
+    );
+
+    if (existing) {
+      await dbRun(
+        `
+        UPDATE stores
+        SET
+          store_name = ?,
+          presso_user_email = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE store_code = ?
+        `,
+        [storeName, email, storeCode]
+      );
+      updated++;
+      details.push({
+        rowNumber: row.rowNumber,
+        status: "UPDATED",
+        storeCode
+      });
+    } else {
+      await dbRun(
+        `
+        INSERT INTO stores (
+          store_code,
+          store_name,
+          presso_user_email,
+          sync_status,
+          sync_message
+        ) VALUES (?, ?, ?, ?, ?)
+        `,
+        [storeCode, storeName, email, "PENDING", null]
+      );
+      created++;
+      details.push({
+        rowNumber: row.rowNumber,
+        status: "CREATED",
+        storeCode
+      });
+    }
+  }
+
+  return {
+    success: true,
+    filename: originalFilename,
+    total: rows.length,
+    created,
+    updated,
+    errors,
+    details
+  };
+}
+
+module.exports = {
+  importStoresMaster
+};

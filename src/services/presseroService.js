@@ -157,6 +157,12 @@ async function findProductByName(productName) {
   }
 }
 
+function normalizeName(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function getProductDetails(productId) {
   try {
     const url = `${env.presseroBaseUrl}/api/site/${env.presseroProductSiteDomain}/Products/${productId}`;

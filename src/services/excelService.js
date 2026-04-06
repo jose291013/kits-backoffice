@@ -43,6 +43,12 @@ function dimToTenths(value) {
   return String(Math.round(num));
 }
 
+function normalizeName(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function parseExcel(filePath) {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
