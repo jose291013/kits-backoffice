@@ -102,8 +102,15 @@
 
         const root = document.getElementById("kitApp");
         if (root && !root.getAttribute("data-kit-mounted")) {
-          root.innerHTML =
-            '<div style="padding:20px;border:1px solid #ddd;border-radius:12px;background:#fff;">Configuration incomplète : baseUrl ou email utilisateur introuvable.</div>';
+          const browserLang = ((navigator.language || "fr") + "").toLowerCase();
+const loaderMsg = browserLang.startsWith("nl")
+  ? "Onvolledige configuratie: baseUrl of gebruikers-e-mailadres niet gevonden."
+  : "Configuration incomplète : baseUrl ou email utilisateur introuvable.";
+
+root.innerHTML =
+  '<div style="padding:20px;border:1px solid #ddd;border-radius:12px;background:#fff;">' +
+  loaderMsg +
+  '</div>';
         }
       }
     }, 250);
