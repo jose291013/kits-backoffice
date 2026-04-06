@@ -667,6 +667,8 @@ tbody.querySelectorAll("button[data-action='build']").forEach((btn) => {
   <td>${b.store_code || ""}</td>
   <td>${statusBadge(b.status)}</td>
   <td>${b.total_lines || 0}</td>
+  <td>${Number(b.need_to_apply_approvals) === 1 ? "Oui" : "Non"}</td>
+  <td>${b.presso_order_number || ""}</td>
   <td>${b.executed_at || ""}</td>
   <td>${b.message || ""}</td>
   <td class="eo-actions">
@@ -1090,6 +1092,8 @@ function renderStoreImportResults(res, mode) {
     <th>Store</th>
     <th>Statut</th>
     <th>Lignes</th>
+    <th>Approbation</th>
+    <th>N° commande</th>
     <th>Envoyé le</th>
     <th>Message</th>
     <th>Actions</th>

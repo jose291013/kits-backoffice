@@ -401,9 +401,9 @@ async function submitBatchToPressero(batchId) {
       paymentMethod: process.env.PRESSERO_PAYMENT_METHOD || null,
       budgetId: null,
       processingOptions: {
-        needToApplyApprovals: true,
-        needToGenerateNotifications: true
-      },
+  needToApplyApprovals: Number(batch.need_to_apply_approvals) === 1,
+  needToGenerateNotifications: true
+},
       items: orderItems
     };
 
@@ -416,33 +416,45 @@ async function submitBatchToPressero(batchId) {
     );
 
     const responseData = response.data || {};
+    const pressoOrderId = responseData.OrderId || null;
+    const pressoOrderNumber = responseData.OrderNumber || null;
+    const pressoOrderDate = responseData.OrderDate || null;
 
     await dbRun(
-      `
-      UPDATE order_batches
-      SET
-        payload_json = ?,
-        response_json = ?,
-        status = ?,
-        executed_at = CURRENT_TIMESTAMP,
-        message = ?
-      WHERE id = ?
-      `,
-      [
-        JSON.stringify(payload),
-        JSON.stringify(responseData),
-        "SENT",
-        null,
-        batchId
-      ]
-    );
+  `
+  UPDATE order_batches
+  SET
+    payload_json = ?,
+    response_json = ?,
+    status = ?,
+    executed_at = CURRENT_TIMESTAMP,
+    message = ?,
+    presso_order_id = ?,
+    presso_order_number = ?,
+    presso_order_date = ?
+  WHERE id = ?
+  `,
+  [
+    JSON.stringify(payload),
+    JSON.stringify(responseData),
+    "SENT",
+    null,
+    pressoOrderId,
+    pressoOrderNumber,
+    pressoOrderDate,
+    batchId
+  ]
+);
 
     return {
-      success: true,
-      batchId,
-      payload,
-      response: responseData
-    };
+  success: true,
+  batchId,
+  payload,
+  response: responseData,
+  pressoOrderId,
+  pressoOrderNumber,
+  pressoOrderDate
+};
   } catch (error) {
     await dbRun(
       `

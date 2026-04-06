@@ -110,26 +110,30 @@ router.get("/imports/:importId/lines", async (req, res) => {
 router.get("/batches", async (req, res) => {
   try {
     const rows = await dbAll(`
-      SELECT
-        id,
-        import_id,
-        store_code,
-        order_group,
-        presso_user_id,
-        site_id,
-        bill_to_address_id,
-        ship_to_address_id,
-        po_number,
-        requested_ship_date,
-        ship_method_name,
-        status,
-        total_lines,
-        created_at,
-        executed_at,
-        message
-      FROM order_batches
-      ORDER BY id DESC
-    `);
+  SELECT
+    id,
+    import_id,
+    store_code,
+    order_group,
+    presso_user_id,
+    site_id,
+    bill_to_address_id,
+    ship_to_address_id,
+    po_number,
+    requested_ship_date,
+    ship_method_name,
+    status,
+    total_lines,
+    created_at,
+    executed_at,
+    message,
+    need_to_apply_approvals,
+    presso_order_id,
+    presso_order_number,
+    presso_order_date
+  FROM order_batches
+  ORDER BY id DESC
+`);
 
     res.json({ success: true, batches: rows });
   } catch (error) {
