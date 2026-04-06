@@ -117,6 +117,7 @@ async function previewExcelImport(filePath, originalFilename = "upload.xlsx") {
     const quantity = r.quantity_q1;
     const jobNumber = r.job_number || null;
     const itemNotes = r.item_notes || null;
+    const needToApplyApprovals = r.need_to_apply_approvals ?? null;
 
     let status = "VALID";
     let message = null;
@@ -203,40 +204,42 @@ if (!kit) {
     await dbRun(
       `
       INSERT INTO excel_import_lines (
-        import_id,
-        row_number,
-        store_code,
-        order_group,
-        po_number,
-        requested_ship_date,
-        ship_method_name,
-        line_no,
-        line_type,
-        item_ref,
-        quantity_q1,
-        job_number,
-        item_notes,
-        status,
-        message
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  import_id,
+  row_number,
+  store_code,
+  order_group,
+  po_number,
+  requested_ship_date,
+  ship_method_name,
+  line_no,
+  line_type,
+  item_ref,
+  quantity_q1,
+  job_number,
+  item_notes,
+  need_to_apply_approvals,
+  status,
+  message
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
-        importId,
-        row.rowNumber,
-        storeCode ? String(storeCode).trim() : null,
-        orderGroup ? String(orderGroup).trim() : "A",
-        poNumber,
-        requestedShipDate,
-        shipMethodName,
-        lineNo,
-        lineType ? String(lineType).trim().toUpperCase() : null,
-        itemRef ? String(itemRef).trim() : null,
-        quantity,
-        jobNumber,
-        itemNotes,
-        status,
-        message
-      ]
+  importId,
+  row.rowNumber,
+  storeCode ? String(storeCode).trim() : null,
+  orderGroup ? String(orderGroup).trim() : "A",
+  poNumber,
+  requestedShipDate,
+  shipMethodName,
+  lineNo,
+  lineType ? String(lineType).trim().toUpperCase() : null,
+  itemRef ? String(itemRef).trim() : null,
+  quantity,
+  jobNumber,
+  itemNotes,
+  needToApplyApprovals,
+  status,
+  message
+]
     );
   }
 
