@@ -79,6 +79,17 @@ async function getKitComponents(kitId) {
   `, [kitId]);
 }
 
+function parseBooleanLike(value, defaultValue = true) {
+  if (value === null || value === undefined || value === "") return defaultValue;
+
+  const v = String(value).trim().toLowerCase();
+
+  if (["true", "1", "yes", "oui", "y"].includes(v)) return true;
+  if (["false", "0", "no", "non", "n"].includes(v)) return false;
+
+  return defaultValue;
+}
+
 async function buildOrderBatches(importId) {
   const validLines = await dbAll(
     `
@@ -109,6 +120,25 @@ async function buildOrderBatches(importId) {
   for (const [groupKey, lines] of groups.entries()) {
     const first = lines[0];
 
+const rawApprovalValue = first.need_to_apply_approvals;
+
+const normalizedApprovalValue =
+  rawApprovalValue === null || rawApprovalValue === undefined
+    ? ""
+    : String(rawApprovalValue).trim().toLowerCase();
+
+const needToApplyApprovals =
+  ["false", "0", "no", "non", "n"].includes(normalizedApprovalValue) ? 0 : 1;
+
+console.log("BUILD APPROVAL DEBUG =", {
+  importId,
+  storeCode: first.store_code,
+  rowId: first.id,
+  rawApprovalValue,
+  normalizedApprovalValue,
+  computedNeedToApplyApprovals: needToApplyApprovals
+});
+
     const store = await dbGet(
       `
       SELECT *
@@ -123,39 +153,41 @@ async function buildOrderBatches(importId) {
     }
 
     const batchInsert = await dbRun(
-      `
-      INSERT INTO order_batches (
-        import_id,
-        store_code,
-        order_group,
-        presso_user_id,
-        site_id,
-        bill_to_address_id,
-        ship_to_address_id,
-        po_number,
-        requested_ship_date,
-        ship_method_name,
-        status,
-        total_lines,
-        message
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        importId,
-        first.store_code,
-        first.order_group || "A",
-        store.presso_user_id,
-        store.site_id,
-        store.billing_address_id,
-        store.preferred_address_id,
-        first.po_number || null,
-        first.requested_ship_date || null,
-        first.ship_method_name || null,
-        "READY",
-        0,
-        null
-      ]
-    );
+  `
+  INSERT INTO order_batches (
+    import_id,
+    store_code,
+    order_group,
+    presso_user_id,
+    site_id,
+    bill_to_address_id,
+    ship_to_address_id,
+    po_number,
+    requested_ship_date,
+    ship_method_name,
+    status,
+    total_lines,
+    message,
+    need_to_apply_approvals
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `,
+  [
+    importId,
+    first.store_code,
+    first.order_group || "A",
+    store.presso_user_id,
+    store.site_id,
+    store.billing_address_id,
+    store.preferred_address_id,
+    first.po_number || null,
+    first.requested_ship_date || null,
+    first.ship_method_name || null,
+    "READY",
+    0,
+    null,
+    needToApplyApprovals
+  ]
+);
 
     const batchId = batchInsert.lastID;
     createdBatches++;
