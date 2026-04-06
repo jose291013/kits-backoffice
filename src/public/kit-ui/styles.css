@@ -1,18 +1,28 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap');
 
 :root {
-  --bg: #f5f7fb;
+  --bg: #f3f4f6;
+  --bg-soft: #eceef2;
   --surface: #ffffff;
-  --surface-soft: #f8fafc;
-  --border: #dce2ea;
-  --text: #1f2937;
+  --surface-soft: #f8f8f9;
+  --border: #d9dde4;
+  --text: #111827;
   --text-soft: #6b7280;
-  --primary: #0f5bd8;
-  --primary-dark: #0a47ab;
-  --shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+
+  --primary: #d71920;
+  --primary-dark: #b51218;
+  --accent: #ffd200;
+  --accent-soft: #fff4b8;
+
+  --success: #15803d;
+  --success-soft: #dcfce7;
+
+  --shadow: 0 14px 34px rgba(17, 24, 39, 0.08);
+  --shadow-strong: 0 16px 36px rgba(215, 25, 32, 0.18);
+
   --radius-xl: 28px;
-  --radius-lg: 20px;
-  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-md: 16px;
 }
 
 * {
@@ -22,7 +32,7 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
+  background: linear-gradient(180deg, var(--bg) 0%, var(--bg-soft) 100%);
   color: var(--text);
   font-family: "Inter", Arial, sans-serif;
 }
@@ -58,20 +68,31 @@ button, input {
 }
 
 .kit-topbar {
-  background: var(--surface);
+  background: linear-gradient(135deg, #ffffff 0%, #f7f7f8 100%);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow);
   padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.kit-topbar::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 8px;
+  background: linear-gradient(180deg, var(--primary), var(--accent));
 }
 
 .kit-page-title {
   margin: 0;
   font-family: "Manrope", Arial, sans-serif;
-  font-size: 34px;
-  line-height: 1.08;
+  font-size: 38px;
+  line-height: 1.06;
   font-weight: 800;
   letter-spacing: -0.03em;
+  color: var(--text);
 }
 
 .kit-page-subtitle {
@@ -98,35 +119,43 @@ button, input {
 .kit-search-input {
   flex: 1 1 360px;
   min-width: 280px;
-  height: 48px;
+  height: 54px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--surface-soft);
-  padding: 0 16px;
+  background: #ffffff;
+  padding: 0 18px;
   outline: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
 }
 
 .kit-search-input:focus,
 .qty-input:focus {
-  border-color: #8db4f8;
-  box-shadow: 0 0 0 4px rgba(15, 91, 216, 0.08);
+  border-color: rgba(215, 25, 32, 0.45);
+  box-shadow: 0 0 0 4px rgba(215, 25, 32, 0.10);
 }
 
 .kit-search-results {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
+  gap: 18px;
   margin-top: 18px;
 }
 
 .kit-result-card {
-  background: var(--surface-soft);
+  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 18px;
+  padding: 22px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  box-shadow: var(--shadow);
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+
+.kit-result-card:hover {
+  transform: translateY(-2px);
+  border-color: #cfd5de;
 }
 
 .kit-result-title {
@@ -152,10 +181,11 @@ button, input {
   align-items: center;
   padding: 6px 10px;
   border-radius: 999px;
-  background: #eaf1ff;
-  color: var(--primary);
+  background: var(--accent-soft);
+  color: var(--text);
   font-size: 12px;
   font-weight: 800;
+  border: 1px solid rgba(255, 210, 0, 0.55);
 }
 
 .btn {
@@ -163,9 +193,9 @@ button, input {
   border-radius: 16px;
   padding: 14px 20px;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease, box-shadow .15s ease;
 }
 
 .btn:hover {
@@ -173,13 +203,13 @@ button, input {
 }
 
 .btn-primary {
-  background: linear-gradient(180deg, #1b67eb 0%, var(--primary) 100%);
+  background: linear-gradient(180deg, #e3262d 0%, var(--primary) 100%);
   color: #fff;
-  box-shadow: 0 10px 24px rgba(15, 91, 216, 0.22);
+  box-shadow: var(--shadow-strong);
 }
 
 .btn-secondary {
-  background: #eef2f8;
+  background: #ffffff;
   color: var(--text);
   border: 1px solid var(--border);
 }
@@ -191,7 +221,7 @@ button, input {
 }
 
 .kit-header {
-  background: var(--surface);
+  background: linear-gradient(135deg, #ffffff 0%, #f8f8f9 100%);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow);
@@ -199,12 +229,22 @@ button, input {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.kit-header::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 8px;
+  background: linear-gradient(180deg, var(--primary), var(--accent));
 }
 
 .kit-title {
   margin: 0;
   font-family: "Manrope", Arial, sans-serif;
-  font-size: 34px;
+  font-size: 36px;
   line-height: 1.08;
   font-weight: 800;
   letter-spacing: -0.03em;
@@ -238,10 +278,10 @@ button, input {
 
 .qty-input {
   width: 96px;
-  height: 48px;
+  height: 50px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--surface-soft);
+  background: #fff;
   text-align: center;
   outline: none;
 }
@@ -263,8 +303,9 @@ button, input {
 .footer-total-value {
   margin-top: 8px;
   font-family: "Manrope", Arial, sans-serif;
-  font-size: 36px;
+  font-size: 38px;
   font-weight: 800;
+  color: var(--text);
 }
 
 .kit-header-actions,
@@ -277,7 +318,7 @@ button, input {
 
 .filter-chip {
   border: 1px solid var(--border);
-  background: #f8fafc;
+  background: #fff;
   color: var(--text);
   border-radius: 999px;
   padding: 10px 14px;
@@ -287,9 +328,9 @@ button, input {
 }
 
 .filter-chip.active {
-  background: #eaf1ff;
-  color: var(--primary);
-  border-color: #b8cff7;
+  background: var(--accent-soft);
+  color: var(--text);
+  border-color: rgba(255, 210, 0, 0.55);
 }
 
 .kit-grid {
@@ -299,17 +340,23 @@ button, input {
 }
 
 .kit-card {
-  background: var(--surface);
+  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+
+.kit-card:hover {
+  transform: translateY(-2px);
+  border-color: #cfd5de;
 }
 
 .kit-card-image-wrap {
-  background: #f8fafc;
+  background: linear-gradient(180deg, #fafafa 0%, #f2f3f5 100%);
   aspect-ratio: 4 / 3;
   display: flex;
   align-items: center;
@@ -339,13 +386,13 @@ button, input {
   position: absolute;
   top: 12px;
   right: 12px;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: rgba(255,255,255,0.92);
+  background: rgba(255,255,255,0.94);
   color: #111827;
   font-size: 16px;
   line-height: 1;
@@ -358,7 +405,7 @@ button, input {
 }
 
 .kit-card-body {
-  padding: 18px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -405,15 +452,16 @@ button, input {
 
 .price-value {
   font-family: "Manrope", Arial, sans-serif;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
+  color: var(--text);
 }
 
 .kit-footer {
   position: sticky;
   bottom: 0;
   z-index: 10;
-  background: rgba(255,255,255,0.92);
+  background: rgba(255,255,255,0.94);
   backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
