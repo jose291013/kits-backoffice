@@ -105,6 +105,21 @@ async function buildOrderBatches(importId) {
   if (!validLines.length) {
     throw new Error("Aucune ligne VALID à transformer en batch");
   }
+  const existingBatch = await dbGet(
+  `
+  SELECT id, status, presso_order_number
+  FROM order_batches
+  WHERE import_id = ?
+  LIMIT 1
+  `,
+  [importId]
+);
+
+if (existingBatch) {
+  throw new Error(
+    `L'import ${importId} a déjà été préparé en batch (${existingBatch.id})`
+  );
+}
 
   const groups = new Map();
 

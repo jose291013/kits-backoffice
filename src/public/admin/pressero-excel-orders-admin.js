@@ -577,9 +577,13 @@ function toggleSidebar() {
         <td>${i.valid_rows || 0}</td>
         <td>${i.error_rows || 0}</td>
         <td class="eo-actions">
-          <button class="eo-btn secondary" data-action="lines" data-id="${i.id}">Voir lignes</button>
-          <button class="eo-btn yellow" data-action="build" data-id="${i.id}">Préparer</button>
-        </td>
+  <button class="eo-btn secondary" data-action="lines" data-id="${i.id}">Voir lignes</button>
+  ${
+    Number(i.batch_count || 0) > 0
+      ? `<button class="eo-btn secondary" disabled>Déjà préparé</button>`
+      : `<button class="eo-btn yellow" data-action="build" data-id="${i.id}">Préparer</button>`
+  }
+</td>
       `;
       tbody.appendChild(tr);
     });
@@ -795,12 +799,15 @@ await loadStores();
   }
 
   async function uploadOrdersExcel(file) {
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await apiForm("/imports/preview", fd);
-    log(`Import commandes: ${JSON.stringify(res)}`, res.success ? "success" : "error");
-    await loadImports();
-  }
+  const fd = new FormData();
+  fd.append("file", file);
+
+  const res = await apiForm("/imports/preview", fd);
+  log(`Import commandes: ${JSON.stringify(res)}`, res.success ? "success" : "error");
+
+  await loadImports();
+  showView("imports-history");
+}
 
   function setBusy(button, busy, busyText = "Traitement...") {
   if (!button) return;
@@ -837,7 +844,12 @@ async function sendAllReady(button) {
 
 async function buildAllImports(button) {
   const data = await apiJson("/backoffice/imports");
-  const imports = (data.imports || []).filter((x) => String(x.status).toUpperCase() === "PREVIEWED");
+  const imports = (data.imports || []).filter((x) => {
+  return (
+    String(x.status).toUpperCase() === "PREVIEWED" &&
+    Number(x.batch_count || 0) === 0
+  );
+});
 
   if (!imports.length) {
     log("Aucun import PREVIEWED à préparer.", "info");

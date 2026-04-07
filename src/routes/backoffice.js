@@ -37,19 +37,31 @@ function dbAll(sql, params = []) {
 router.get("/imports", async (req, res) => {
   try {
     const rows = await dbAll(`
-      SELECT
-        id,
-        original_filename,
-        sheet_name,
-        imported_at,
-        status,
-        total_rows,
-        valid_rows,
-        error_rows,
-        message
-      FROM excel_imports
-      ORDER BY id DESC
-    `);
+  SELECT
+    ei.id,
+    ei.original_filename,
+    ei.sheet_name,
+    ei.imported_at,
+    ei.status,
+    ei.total_rows,
+    ei.valid_rows,
+    ei.error_rows,
+    ei.message,
+    COUNT(ob.id) AS batch_count
+  FROM excel_imports ei
+  LEFT JOIN order_batches ob ON ob.import_id = ei.id
+  GROUP BY
+    ei.id,
+    ei.original_filename,
+    ei.sheet_name,
+    ei.imported_at,
+    ei.status,
+    ei.total_rows,
+    ei.valid_rows,
+    ei.error_rows,
+    ei.message
+  ORDER BY ei.id DESC
+`);
 
     res.json({ success: true, imports: rows });
   } catch (error) {
