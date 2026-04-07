@@ -78,6 +78,54 @@ async function parseExcel(filePath) {
   return rows;
 }
 
+function getKitDisplayNameFromRow(row, partId) {
+  const langCode = toStringSafe(
+    row["Lang / Taal"] ||
+    row["LangCode"] ||
+    row["lang_code"]
+  ).toUpperCase().trim();
+
+  const mcatFr = normalizeName(row["P MCatFR"] || row["PMCatFR"] || "");
+  const mcatNl = normalizeName(row["P MCatNL"] || row["PMCatNL"] || "");
+  const fallbackName = normalizeName(
+    row["Name"] ||
+    row["KitName"] ||
+    row["kit_name"] ||
+    partId
+  ) || partId;
+
+  if (langCode === "FR" && mcatFr) {
+    return mcatFr;
+  }
+
+  if (langCode === "NL" && mcatNl) {
+    return mcatNl;
+  }
+
+  if (langCode === "BIL") {
+    if (mcatFr && mcatNl) {
+      return `${mcatFr} / ${mcatNl}`;
+    }
+    return mcatFr || mcatNl || fallbackName;
+  }
+
+  return fallbackName;
+}
+
+function getLangPriority(row) {
+  const langCode = toStringSafe(
+    row["Lang / Taal"] ||
+    row["LangCode"] ||
+    row["lang_code"]
+  ).toUpperCase().trim();
+
+  if (langCode === "BIL") return 3;
+  if (langCode === "FR") return 2;
+  if (langCode === "NL") return 2;
+  if (langCode === "UNI") return 1;
+  return 0;
+}
+
 function buildKitsFromRows(rows) {
   const kitsMap = new Map();
 
@@ -91,12 +139,7 @@ function buildKitsFromRows(rows) {
 
     if (!partId) return;
 
-    const kitName = toStringSafe(
-      row["Name"] ||
-      row["KitName"] ||
-      row["kit_name"] ||
-      partId
-    ) || partId;
+    const kitName = getKitDisplayNameFromRow(row, partId);
 
     const componentId = toStringSafe(
       row["Component ID"] ||
@@ -160,14 +203,23 @@ function buildKitsFromRows(rows) {
     );
 
     if (!kitsMap.has(partId)) {
-      kitsMap.set(partId, {
-        part_id: partId,
-        kit_name: kitName,
-        default_kit_qty: defaultKitQty,
-        is_active: 1,
-        components: []
-      });
-    }
+  kitsMap.set(partId, {
+    part_id: partId,
+    kit_name: kitName,
+    default_kit_qty: defaultKitQty,
+    is_active: 1,
+    components: [],
+    _namePriority: getLangPriority(row)
+  });
+} else {
+  const existingKit = kitsMap.get(partId);
+  const newPriority = getLangPriority(row);
+
+  if (newPriority > (existingKit._namePriority || 0) && kitName) {
+    existingKit.kit_name = kitName;
+    existingKit._namePriority = newPriority;
+  }
+}
 
     const kit = kitsMap.get(partId);
 
@@ -185,7 +237,10 @@ function buildKitsFromRows(rows) {
     });
   });
 
-  return Array.from(kitsMap.values());
+  return Array.from(kitsMap.values()).map(kit => {
+  delete kit._namePriority;
+  return kit;
+});
 }
 
 async function parseExcelFile(filePath) {
