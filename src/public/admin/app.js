@@ -22,6 +22,7 @@ const els = {
 
   kitDetailSection: document.getElementById("kitDetailSection"),
   kitDetailBox: document.getElementById("kitDetailBox"),
+  resetAllKitsBtn: document.getElementById("resetAllKitsBtn"),
   kitDetailTableBody: document.getElementById("kitDetailTableBody")
 };
 
@@ -445,6 +446,7 @@ function bindEvents() {
   els.exportExcelBtn.addEventListener("click", exportExcel);
   els.syncPendingBtn.addEventListener("click", syncPendingComponents);
   els.syncAllKitsBtn.addEventListener("click", syncAllKits);
+  els.resetAllKitsBtn.addEventListener("click", resetAllKits);
 
   els.kitSearchInput.addEventListener("input", () => {
     loadKits();
@@ -458,6 +460,32 @@ function bindEvents() {
 async function init() {
   bindEvents();
   await refreshAll();
+}
+
+async function resetAllKits() {
+  const ok = window.confirm(
+    "Voulez-vous vraiment supprimer tous les kits et tous leurs composants ?\n\nCette action est irréversible."
+  );
+  if (!ok) return;
+
+  try {
+    els.importResult.innerHTML = "Réinitialisation en cours...";
+
+    const data = await fetchJson("/api/admin/reset-all-kits", {
+      method: "POST"
+    });
+
+    state.selectedPartId = null;
+    els.kitDetailBox.innerHTML = "";
+    els.kitDetailTableBody.innerHTML = `<tr><td colspan="7" class="table-empty">Aucun composant</td></tr>`;
+
+    els.importResult.innerHTML = `<strong>${escapeHtml(data.message || "Réinitialisation terminée")}</strong>`;
+
+    await refreshAll();
+  } catch (err) {
+    console.error("RESET ALL KITS ERROR:", err);
+    els.importResult.innerHTML = `<strong>Erreur :</strong> ${escapeHtml(err.message)}`;
+  }
 }
 
 init();

@@ -644,6 +644,19 @@ async function deleteKitByPartId(partId) {
   return { deleted: true };
 }
 
+async function resetAllKitsData() {
+  await run(`DELETE FROM kit_components`);
+  await run(`DELETE FROM kits`);
+
+  try {
+    await run(`DELETE FROM sqlite_sequence WHERE name IN ('kit_components', 'kits')`);
+  } catch (err) {
+    console.warn("Impossible de réinitialiser sqlite_sequence:", err.message);
+  }
+
+  return { ok: true };
+}
+
 module.exports = {
   getAllKits,
   getKitByPartId,
@@ -663,5 +676,6 @@ module.exports = {
   getAllKitComponentsForExport,
   saveImportedKits,
   deleteKitByPartId,
+  resetAllKitsData,
   updateComponentSyncData
 };

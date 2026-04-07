@@ -119,9 +119,23 @@ async function exportExcel(req, res, next) {
   }
 }
 
+async function resetAllKits(req, res, next) {
+  try {
+    await kitRepository.resetAllKitsData();
+
+    res.json({
+      ok: true,
+      message: "Tous les kits et composants ont été supprimés."
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getAllKits,
   getKitDetail,
   deleteKit,
+  resetAllKits,
   exportExcel
 };

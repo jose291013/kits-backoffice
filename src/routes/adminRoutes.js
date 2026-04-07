@@ -7,5 +7,6 @@ router.get("/kits", adminController.getAllKits);
 router.get("/kits/:partId", adminController.getKitDetail);
 router.delete("/kits/:partId", adminController.deleteKit);
 router.get("/export-excel", adminController.exportExcel);
+router.post("/reset-all-kits", adminController.resetAllKits);
 
 module.exports = router;

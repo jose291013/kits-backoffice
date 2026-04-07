@@ -235,6 +235,17 @@ button, input {
   color: #fff;
 }
 
+.btn-danger-outline {
+  background: #fff;
+  color: #c62828;
+  border: 1px solid #c62828;
+}
+
+.btn-danger-outline:hover {
+  background: #c62828;
+  color: #fff;
+}
+
 .upload-box {
   display: flex;
   justify-content: space-between;
