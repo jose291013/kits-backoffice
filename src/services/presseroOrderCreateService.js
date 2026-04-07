@@ -249,6 +249,10 @@ async function submitBatchToPressero(batchId) {
       throw new Error(`Batch introuvable: ${batchId}`);
     }
 
+    if (batch.presso_order_number || batch.presso_order_id || String(batch.status || "").toUpperCase() === "SENT") {
+  throw new Error(`Le batch ${batchId} a déjà été envoyé à Pressero`);
+}
+
     if (!batch.presso_user_id || !batch.site_id) {
       throw new Error("Batch incomplet: presso_user_id ou site_id manquant");
     }

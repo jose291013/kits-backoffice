@@ -190,11 +190,12 @@ router.get("/batches/:batchId/items", async (req, res) => {
 router.post("/submit-all-ready", async (req, res) => {
   try {
     const batches = await dbAll(`
-      SELECT id
-      FROM order_batches
-      WHERE status = 'READY'
-      ORDER BY id ASC
-    `);
+  SELECT id
+  FROM order_batches
+  WHERE status = 'READY'
+    AND (presso_order_number IS NULL AND presso_order_id IS NULL)
+  ORDER BY id ASC
+`);
 
     let sent = 0;
     let failed = 0;

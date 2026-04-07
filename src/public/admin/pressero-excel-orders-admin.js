@@ -672,9 +672,13 @@ tbody.querySelectorAll("button[data-action='build']").forEach((btn) => {
   <td>${b.executed_at || ""}</td>
   <td>${b.message || ""}</td>
   <td class="eo-actions">
-    <button class="eo-btn secondary" data-action="items" data-id="${b.id}">Voir items</button>
-    <button class="eo-btn green" data-action="send" data-id="${b.id}">Envoyer</button>
-  </td>
+  <button class="eo-btn secondary" data-action="items" data-id="${b.id}">Voir items</button>
+  ${
+    b.presso_order_number || String(b.status || "").toUpperCase() === "SENT"
+      ? `<button class="eo-btn secondary" disabled>Déjà envoyée</button>`
+      : `<button class="eo-btn green" data-action="send" data-id="${b.id}">Envoyer</button>`
+  }
+</td>
 `;
       tbody.appendChild(tr);
     });
@@ -1106,22 +1110,20 @@ function renderStoreImportResults(res, mode) {
         </section>
 
         <section class="eo-view" data-view="detail-panel">
-          <div class="eo-two-col">
-            <div class="eo-card">
-              <h3>Détail</h3>
-              <p class="eo-card-sub">Sélectionnez un import ou une commande préparée pour afficher son contenu détaillé.</p>
-              <div id="eo-detail-box" style="min-height:320px;color:#374151">
-                Sélectionnez un import ou une commande préparée pour voir le détail.
-              </div>
-            </div>
+  <div class="eo-card">
+    <h3>Détail</h3>
+    <p class="eo-card-sub">Sélectionnez un import ou une commande préparée pour afficher son contenu détaillé.</p>
+    <div id="eo-detail-box" style="min-height:320px;color:#374151">
+      Sélectionnez un import ou une commande préparée pour voir le détail.
+    </div>
+  </div>
 
-            <div class="eo-card">
-              <h3>Journal</h3>
-              <p class="eo-card-sub">Historique des dernières actions effectuées depuis l’interface.</p>
-              <div id="eo-log-box" class="eo-log"></div>
-            </div>
-          </div>
-        </section>
+  <div class="eo-card">
+    <h3>Journal</h3>
+    <p class="eo-card-sub">Historique des dernières actions effectuées depuis l’interface.</p>
+    <div id="eo-log-box" class="eo-log"></div>
+  </div>
+</section>
       </main>
     </div>
   </div>
