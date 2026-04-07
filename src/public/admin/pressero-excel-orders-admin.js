@@ -567,6 +567,15 @@ function toggleSidebar() {
     const imports = data.imports || [];
     qs("#kpi-imports").textContent = imports.length;
 
+    const importsRemainingToBuild = imports.filter((x) => {
+  return (
+    String(x.status).toUpperCase() === "PREVIEWED" &&
+    Number(x.batch_count || 0) === 0
+  );
+}).length;
+
+qs("#kpi-batches").textContent = importsRemainingToBuild;
+
     imports.forEach((i) => {
       const tr = ce("tr");
       tr.innerHTML = `
@@ -648,10 +657,11 @@ tbody.querySelectorAll("button[data-action='build']").forEach((btn) => {
   }
 
   async function buildImport(importId) {
-    const res = await apiJson(`/orders/build-from-import/${importId}`, { method: "POST" });
-    log(`Préparation import ${importId}: ${JSON.stringify(res)}`, res.success ? "success" : "error");
-    await loadBatches();
-  }
+  const res = await apiJson(`/orders/build-from-import/${importId}`, { method: "POST" });
+  log(`Préparation import ${importId}: ${JSON.stringify(res)}`, res.success ? "success" : "error");
+  await loadImports();
+  await loadBatches();
+}
 
   async function loadBatches() {
     const data = await apiJson("/backoffice/batches");
@@ -660,8 +670,15 @@ tbody.querySelectorAll("button[data-action='build']").forEach((btn) => {
     tbody.innerHTML = "";
 
     const batches = data.batches || [];
-    qs("#kpi-batches").textContent = batches.length;
-    qs("#kpi-ready").textContent = batches.filter(b => b.status === "READY").length;
+    const readyToSendCount = batches.filter((b) => {
+  return (
+    String(b.status || "").toUpperCase() === "READY" &&
+    !b.presso_order_number &&
+    !b.presso_order_id
+  );
+}).length;
+
+qs("#kpi-ready").textContent = readyToSendCount;
 
     batches.forEach((b) => {
       const tr = ce("tr");
@@ -752,10 +769,11 @@ tbody.querySelectorAll("button[data-action='send']").forEach((btn) => {
   }
 
   async function sendBatch(batchId) {
-    const res = await apiJson(`/orders/submit-batch/${batchId}`, { method: "POST" });
-    log(`Batch ${batchId}: ${JSON.stringify(res)}`, res.success ? "success" : "error");
-    await loadBatches();
-  }
+  const res = await apiJson(`/orders/submit-batch/${batchId}`, { method: "POST" });
+  log(`Batch ${batchId}: ${JSON.stringify(res)}`, res.success ? "success" : "error");
+  await loadImports();
+  await loadBatches();
+}
 
   async function cleanupOrders() {
   const confirmed = window.confirm(
@@ -835,6 +853,7 @@ async function sendAllReady(button) {
   try {
     const res = await apiJson("/backoffice/submit-all-ready", { method: "POST" });
     log(`Envoi global: ${JSON.stringify(res)}`, res.success ? "success" : "error");
+    await loadImports();
     await loadBatches();
     showView("batches-panel");
   } finally {
@@ -1003,7 +1022,7 @@ function renderStoreImportResults(res, mode) {
         <div class="eo-kpis">
           <div class="eo-kpi"><strong id="kpi-stores">0</strong><span>Magasins</span></div>
           <div class="eo-kpi"><strong id="kpi-imports">0</strong><span>Imports</span></div>
-          <div class="eo-kpi"><strong id="kpi-batches">0</strong><span>Commandes préparées</span></div>
+          <div class="eo-kpi"><strong id="kpi-batches">0</strong><span>À préparer</span></div>
           <div class="eo-kpi"><strong id="kpi-ready">0</strong><span>Prêtes à envoyer</span></div>
         </div>
 
