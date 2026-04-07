@@ -102,7 +102,7 @@ function getKitDisplayNameFromRow(row, partId) {
     return mcatNl;
   }
 
-  if (langCode === "BIL") {
+  if (langCode === "BIL" || langCode === "UNI") {
     if (mcatFr && mcatNl) {
       return `${mcatFr} / ${mcatNl}`;
     }
@@ -120,10 +120,10 @@ function getLangPriority(row) {
   ).toUpperCase().trim();
 
   if (langCode === "BIL") return 3;
-  if (langCode === "FR") return 2;
-  if (langCode === "NL") return 2;
-  if (langCode === "UNI") return 1;
-  return 0;
+if (langCode === "UNI") return 3;
+if (langCode === "FR") return 2;
+if (langCode === "NL") return 2;
+return 0;
 }
 
 function buildKitsFromRows(rows) {
