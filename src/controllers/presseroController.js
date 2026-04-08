@@ -4,9 +4,9 @@ const presseroService = require("../services/presseroService");
 async function syncOneKit(kit) {
   const results = [];
 
-  for (const component of kit.components) {
+  for (const component of (kit.components || [])) {
     try {
-      const syncData = await presseroService.resolveProductByName(component.product_name);
+      const syncData = await presseroService.resolveProductByName(component.component_id);
 
       await kitRepository.updateComponentSyncData(component.id, syncData);
 
@@ -23,6 +23,8 @@ async function syncOneKit(kit) {
         productId: null,
         productIsActive: 0,
         allowedGroupsJson: null,
+        productImageLargeUrl: null,
+        productImageXlargeUrl: null,
         lastSyncStatus: "ERROR",
         lastSyncMessage: err.message
       };
@@ -50,7 +52,7 @@ async function syncOneKit(kit) {
 
 async function syncOneComponent(component) {
   try {
-    const syncData = await presseroService.resolveProductByName(component.product_name);
+    const syncData = await presseroService.resolveProductByName(component.component_id);
 
     await kitRepository.updateComponentSyncData(component.id, syncData);
 
@@ -68,6 +70,8 @@ async function syncOneComponent(component) {
       productId: null,
       productIsActive: 0,
       allowedGroupsJson: null,
+      productImageLargeUrl: null,
+      productImageXlargeUrl: null,
       lastSyncStatus: "ERROR",
       lastSyncMessage: err.message
     };
@@ -147,6 +151,7 @@ async function syncKitByPartId(req, res, next) {
     next(err);
   }
 }
+
 async function getPendingComponents(req, res, next) {
   try {
     const limitRaw = Number(req.query.limit || 50);
@@ -182,71 +187,6 @@ async function getPendingComponents(req, res, next) {
     next(err);
   }
 }
-
-
-async function syncAllKits(req, res, next) {
-  try {
-    const limit = Math.max(1, Number(req.query.limit || 5000));
-    const kits = await kitRepository.getAllKitsDetailed();
-
-    const selectedKits = kits.slice(0, limit);
-
-    let kitsProcessed = 0;
-    let componentsProcessed = 0;
-    let okCount = 0;
-    let partialOkCount = 0;
-    let notFoundCount = 0;
-    let errorCount = 0;
-
-    for (const kit of selectedKits) {
-      kitsProcessed += 1;
-
-      for (const component of (kit.components || [])) {
-        componentsProcessed += 1;
-
-        const result = await presseroService.resolveProductByName(component.product_name);
-
-        await kitRepository.updateComponentSyncData(component.id, {
-          productId: result.productId || null,
-          productIsActive: result.productIsActive || 0,
-          allowedGroupsJson: result.allowedGroupsJson || null,
-          productImageLargeUrl: result.productImageLargeUrl || null,
-          productImageXlargeUrl: result.productImageXlargeUrl || null,
-          lastSyncStatus: result.lastSyncStatus,
-          lastSyncMessage: result.lastSyncMessage
-        });
-
-        if (result.lastSyncStatus === "OK") okCount += 1;
-        else if (result.lastSyncStatus === "PARTIAL_OK") partialOkCount += 1;
-        else if (result.lastSyncStatus === "NOT_FOUND") notFoundCount += 1;
-        else errorCount += 1;
-      }
-    }
-
-    res.json({
-      ok: true,
-      summary: {
-        requestedLimit: limit,
-        kitsProcessed,
-        componentsProcessed,
-        okCount,
-        partialOkCount,
-        notFoundCount,
-        errorCount
-      }
-    });
-  } catch (err) {
-    next(err);
-  }
-}
-
-module.exports = {
-  syncKitByPartId,
-  syncPendingComponents,
-  getPendingComponents,
-  getComponentsByStatus,
-  syncAllKits
-};
 
 async function getComponentsByStatus(req, res, next) {
   try {
