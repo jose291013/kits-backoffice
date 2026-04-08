@@ -117,14 +117,17 @@ async function getWithAuthRetry(url) {
 async function findProductByName(productName) {
   try {
     const url = `${env.presseroBaseUrl}/api/site/${env.presseroProductSiteDomain}/products/?pageNumber=0&pageSize=20&includeDeleted=True`;
+    const searchValue = String(productName || "")
+  .replace(/\s+/g, " ")
+  .trim();
 
     const body = [
-      {
-        Column: "productName",
-        Value: productName,
-        Operator: "contains"
-      }
-    ];
+  {
+    Column: "productName",
+    Value: searchValue,
+    Operator: "contains"
+  }
+];
 
     const response = await postWithAuthRetry(url, body);
     const items = response.data?.Items || [];
@@ -133,15 +136,11 @@ async function findProductByName(productName) {
       return null;
     }
 
-    const normalize = (value) =>
-      String(value || "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .toLowerCase();
+    const target = normalizeProductLookupValue(productName);
 
-    const target = normalize(productName);
-
-    const exact = items.find(item => normalize(item.ProductName) === target);
+const exact = items.find(item => {
+  return normalizeProductLookupValue(item.ProductName) === target;
+});
     if (exact) {
       return exact;
     }
@@ -161,6 +160,14 @@ function normalizeName(value) {
   return String(value || "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizeProductLookupValue(value) {
+  return String(value || "")
+    .replace(/\s*-\s*/g, " - ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 async function getProductDetails(productId) {
@@ -302,8 +309,8 @@ function extractProductImages(details) {
   };
 }
 
-async function resolveProductByName(productName) {
-  const product = await findProductByName(productName);
+async function resolveProductByComponentId(componentId) {
+  return resolveProductByName(componentId);
 
   if (!product) {
     return {
@@ -366,6 +373,7 @@ module.exports = {
   findProductByName,
   getProductDetails,
   resolveProductByName,
+  resolveProductByComponentId,
   getUserByEmail,
   getUserDetails,
   getUserGroupsByEmail
