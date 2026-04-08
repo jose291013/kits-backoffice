@@ -315,6 +315,16 @@
     return views;
   }
 
+  function refreshHeaderCartCount(addedCount = 0) {
+  const nodes = document.querySelectorAll('.store-data[data-cart="count"]');
+  if (!nodes.length) return;
+
+  nodes.forEach(node => {
+    const current = parseInt((node.textContent || "0").trim(), 10) || 0;
+    node.textContent = String(current + addedCount);
+  });
+}
+
   async function addCurrentKitToCart() {
     if (!state.selectedPartId) return;
 
@@ -342,6 +352,8 @@
         components: componentsPayload
       })
     });
+
+    refreshHeaderCartCount(data.addedCount || 0);
 
     alert(t("addToCartSuccess", { count: data.addedCount }));
     window.location.reload();
