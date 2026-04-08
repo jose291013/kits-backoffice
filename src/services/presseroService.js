@@ -309,8 +309,8 @@ function extractProductImages(details) {
   };
 }
 
-async function resolveProductByComponentId(componentId) {
-  return resolveProductByName(componentId);
+async function resolveProductByName(productName) {
+  const product = await findProductByName(productName);
 
   if (!product) {
     return {
@@ -366,6 +366,10 @@ async function resolveProductByComponentId(componentId) {
       lastSyncMessage: `Produit trouvé, mais détail produit indisponible: ${err.message}`
     };
   }
+}
+
+async function resolveProductByComponentId(componentId) {
+  return resolveProductByName(componentId);
 }
 
 module.exports = {
