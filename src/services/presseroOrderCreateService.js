@@ -232,17 +232,46 @@ console.log("SELECTED SHIPPING OBJECT =", JSON.stringify(selected, null, 2));
   };
 }
 
-function extractSelectedShipMethodName(selectedShipping, shipAddress, fallbackValue = null) {
-  const candidates = [
-    shipAddress?.default_ship_method,
-    selectedShipping?.Estimate?.Service?.Name,
-    selectedShipping?.Estimate?.Service?.Description,
-    fallbackValue
-  ];
+function normalizeShipMethodText(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
 
-  for (const value of candidates) {
-    const v = String(value || "").trim();
-    if (v) return v;
+function extractSelectedShipMethodName(selectedShipping, allEstimates, shipAddress, fallbackValue = null) {
+  const exactServiceName = String(selectedShipping?.Estimate?.Service?.Name || "").trim();
+  if (exactServiceName) {
+    return exactServiceName;
+  }
+
+  const fallbackCandidates = [
+    shipAddress?.default_ship_method,
+    fallbackValue,
+    selectedShipping?.Estimate?.Service?.Description
+  ]
+    .map(v => String(v || "").trim())
+    .filter(Boolean);
+
+  const shippable = (allEstimates || []).filter(x => x?.Estimate?.CanShip === true);
+
+  for (const candidate of fallbackCandidates) {
+    const wanted = normalizeShipMethodText(candidate);
+
+    const match = shippable.find((x) => {
+      const serviceName = normalizeShipMethodText(x?.Estimate?.Service?.Name);
+      const serviceDescription = normalizeShipMethodText(x?.Estimate?.Service?.Description);
+
+      return serviceName === wanted || serviceDescription === wanted;
+    });
+
+    if (match) {
+      const matchedName = String(match?.Estimate?.Service?.Name || "").trim();
+      if (matchedName) return matchedName;
+
+      const matchedDescription = String(match?.Estimate?.Service?.Description || "").trim();
+      if (matchedDescription) return matchedDescription;
+    }
   }
 
   return null;
@@ -332,6 +361,7 @@ const totalShipping = Number(shippingEstimation.shippingCost || 0);
 
 const selectedShipMethodName = extractSelectedShipMethodName(
   shippingEstimation.selectedShipping,
+  shippingEstimation.allEstimates,
   shipAddress,
   batch.ship_method_name || null
 );
@@ -488,7 +518,8 @@ const { batch, billAddress, shipAddress, selectedShipMethodName, items: enriched
   shipAddress,
   selectedShipMethodName
 );
-
+console.error("SUBMIT BATCH ERROR STATUS =", error.response?.status);
+console.error("SUBMIT BATCH ERROR DATA =", JSON.stringify(error.response?.data || null, null, 2));
 console.log("SELECTED SHIP METHOD NAME =", selectedShipMethodName);
 console.log("ORDER ITEMS WITH SHIPPING =", JSON.stringify(
   orderItems.map((x) => ({
