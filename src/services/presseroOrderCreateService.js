@@ -222,6 +222,9 @@ async function estimateShippingCost(batch, shipAddress, totalWeight) {
     });
   }
 
+  console.log("SHIPPING ESTIMATES =", JSON.stringify(estimates, null, 2));
+console.log("SELECTED SHIPPING OBJECT =", JSON.stringify(selected, null, 2));
+
   return {
     shippingCost: Number(selected?.Estimate?.Cost || 0),
     selectedShipping: selected,
@@ -229,13 +232,20 @@ async function estimateShippingCost(batch, shipAddress, totalWeight) {
   };
 }
 
-function extractSelectedShipMethodName(selectedShipping, fallbackValue = null) {
-  const serviceName =
-    selectedShipping?.Estimate?.Service?.Name ||
-    selectedShipping?.Estimate?.Service?.Description ||
-    null;
+function extractSelectedShipMethodName(selectedShipping, shipAddress, fallbackValue = null) {
+  const candidates = [
+    shipAddress?.default_ship_method,
+    selectedShipping?.Estimate?.Service?.Name,
+    selectedShipping?.Estimate?.Service?.Description,
+    fallbackValue
+  ];
 
-  return serviceName || fallbackValue || null;
+  for (const value of candidates) {
+    const v = String(value || "").trim();
+    if (v) return v;
+  }
+
+  return null;
 }
 
 async function hydrateBatchFinancials(batchId) {
@@ -322,8 +332,10 @@ const totalShipping = Number(shippingEstimation.shippingCost || 0);
 
 const selectedShipMethodName = extractSelectedShipMethodName(
   shippingEstimation.selectedShipping,
+  shipAddress,
   batch.ship_method_name || null
 );
+console.log("SHIP ADDRESS DEFAULT METHOD =", shipAddress?.default_ship_method || null);
 
 if (!selectedShipMethodName) {
   throw new Error("Aucune méthode de livraison valide n'a pu être déterminée");
