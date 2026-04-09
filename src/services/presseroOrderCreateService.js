@@ -518,8 +518,7 @@ const { batch, billAddress, shipAddress, selectedShipMethodName, items: enriched
   shipAddress,
   selectedShipMethodName
 );
-console.error("SUBMIT BATCH ERROR STATUS =", error.response?.status);
-console.error("SUBMIT BATCH ERROR DATA =", JSON.stringify(error.response?.data || null, null, 2));
+
 console.log("SELECTED SHIP METHOD NAME =", selectedShipMethodName);
 console.log("ORDER ITEMS WITH SHIPPING =", JSON.stringify(
   orderItems.map((x) => ({
@@ -600,6 +599,8 @@ console.log("ORDER ITEMS WITH SHIPPING =", JSON.stringify(
       pressoOrderDate
     };
   } catch (error) {
+    console.error("SUBMIT BATCH ERROR STATUS =", error.response?.status);
+console.error("SUBMIT BATCH ERROR DATA =", JSON.stringify(error.response?.data || null, null, 2));
     await dbRun(
       `
       UPDATE order_batches
