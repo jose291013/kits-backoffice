@@ -4,7 +4,11 @@ const axios = require("axios");
 const ADMIN_BASE_URL = process.env.PRESSERO_BASE_URL;
 const PRODUCT_SITE_DOMAIN = process.env.PRESSERO_PRODUCT_SITE_DOMAIN;
 const SHIPPING_SITE_DOMAIN = process.env.PRESSERO_SHIPPING_DOMAIN || process.env.PRESSERO_PRODUCT_SITE_DOMAIN;
-const DEFAULT_TAX_RATE = Number(process.env.DEFAULT_TAX_RATE || 0);
+const rawTaxRate = process.env.DEFAULT_TAX_RATE;
+const DEFAULT_TAX_RATE =
+  rawTaxRate === undefined || rawTaxRate === null || rawTaxRate === ""
+    ? 0.21
+    : Number(rawTaxRate);
 const PRESSERO_USERNAME = process.env.PRESSERO_USERNAME;
 const PRESSERO_PASSWORD = process.env.PRESSERO_PASSWORD;
 const PRESSERO_SUBSCRIBER_ID = process.env.PRESSERO_SUBSCRIBER_ID;
