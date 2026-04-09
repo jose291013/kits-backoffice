@@ -229,6 +229,15 @@ async function estimateShippingCost(batch, shipAddress, totalWeight) {
   };
 }
 
+function extractSelectedShipMethodName(selectedShipping, fallbackValue = null) {
+  const serviceName =
+    selectedShipping?.Estimate?.Service?.Name ||
+    selectedShipping?.Estimate?.Service?.Description ||
+    null;
+
+  return serviceName || fallbackValue || null;
+}
+
 async function hydrateBatchFinancials(batchId) {
   const batch = await dbGet(
     `
@@ -309,7 +318,29 @@ async function hydrateBatchFinancials(batchId) {
   }
 
   const shippingEstimation = await estimateShippingCost(batch, shipAddress, totalWeight);
-  const totalShipping = Number(shippingEstimation.shippingCost || 0);
+const totalShipping = Number(shippingEstimation.shippingCost || 0);
+
+const selectedShipMethodName = extractSelectedShipMethodName(
+  shippingEstimation.selectedShipping,
+  batch.ship_method_name || null
+);
+
+if (!selectedShipMethodName) {
+  throw new Error("Aucune méthode de livraison valide n'a pu être déterminée");
+}
+
+if (!batch.ship_method_name && selectedShipMethodName) {
+  await dbRun(
+    `
+    UPDATE order_batches
+    SET ship_method_name = ?
+    WHERE id = ?
+    `,
+    [selectedShipMethodName, batchId]
+  );
+
+  batch.ship_method_name = selectedShipMethodName;
+}
 
   const totalWeightForSplit =
     pricedItems.reduce((sum, x) => sum + Number(x.weight || 0), 0) || 1;
@@ -402,7 +433,7 @@ async function hydrateBatchFinancials(batchId) {
   };
 }
 
-function buildOrderItemsForCreate(batchId, enrichedItems, shipAddress) {
+function buildOrderItemsForCreate(batchId, enrichedItems, shipAddress, selectedShipMethodName) {
   return enrichedItems.map((row) => ({
     productId: row.item.product_id,
     jobNumber: row.item.job_number || `BATCH-${batchId}-ITEM-${row.item.id}`,
@@ -414,7 +445,7 @@ function buildOrderItemsForCreate(batchId, enrichedItems, shipAddress) {
     shipping: row.shipping,
     weight: row.weight,
     itemNotes: row.item.item_notes || null,
-    shipMethodName: row.item.ship_method_name || null,
+    shipMethodName: selectedShipMethodName || null,
     ...buildShipToFields(shipAddress),
     edocSessionId: null
   }));
@@ -432,13 +463,20 @@ async function submitBatchToPressero(batchId) {
 
   try {
     const hydrated = await hydrateBatchFinancials(batchId);
-    const { batch, billAddress, shipAddress, items: enrichedItems } = hydrated;
+const { batch, billAddress, shipAddress, selectedShipMethodName, items: enrichedItems } = hydrated;
 
     if (batch.presso_order_number || batch.presso_order_id || String(batch.status || "").toUpperCase() === "SENT") {
       throw new Error(`Le batch ${batchId} a déjà été envoyé à Pressero`);
     }
 
-    const orderItems = buildOrderItemsForCreate(batchId, enrichedItems, shipAddress);
+    const orderItems = buildOrderItemsForCreate(
+  batchId,
+  enrichedItems,
+  shipAddress,
+  selectedShipMethodName
+);
+
+console.log("SELECTED SHIP METHOD NAME =", selectedShipMethodName);
 
     const payload = {
       siteId: batch.site_id,
