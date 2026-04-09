@@ -203,16 +203,18 @@ async function estimateShippingCost(batch, shipAddress, totalWeight) {
   const wantedMethod = String(batch.ship_method_name || "").trim().toLowerCase();
 
   if (wantedMethod) {
-    selected = shippable.find((x) => {
-      const serviceName = String(x?.Estimate?.Service?.Name || "").trim().toLowerCase();
-      const serviceDescription = String(x?.Estimate?.Service?.Description || "").trim().toLowerCase();
+  selected = shippable.find((x) => {
+    const serviceName = String(x?.Estimate?.Service?.Name || "").trim().toLowerCase();
+    const serviceDescription = String(x?.Estimate?.Service?.Description || "").trim().toLowerCase();
 
-      return (
-        serviceName === wantedMethod ||
-        serviceDescription === wantedMethod
-      );
-    });
-  }
+    return (
+      serviceName === wantedMethod ||
+      serviceDescription === wantedMethod ||
+      serviceName.includes(wantedMethod) ||
+      serviceDescription.includes(wantedMethod)
+    );
+  });
+}
 
   if (!selected) {
     selected = shippable.reduce((min, current) => {
@@ -232,46 +234,25 @@ console.log("SELECTED SHIPPING OBJECT =", JSON.stringify(selected, null, 2));
   };
 }
 
-function normalizeShipMethodText(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
-}
-
 function extractSelectedShipMethodName(selectedShipping, allEstimates, shipAddress, fallbackValue = null) {
-  const exactServiceName = String(selectedShipping?.Estimate?.Service?.Name || "").trim();
-  if (exactServiceName) {
-    return exactServiceName;
+  const batchMethod = String(fallbackValue || "").trim();
+  if (batchMethod) {
+    return batchMethod;
   }
 
-  const fallbackCandidates = [
-    shipAddress?.default_ship_method,
-    fallbackValue,
-    selectedShipping?.Estimate?.Service?.Description
-  ]
-    .map(v => String(v || "").trim())
-    .filter(Boolean);
+  const addressMethod = String(shipAddress?.default_ship_method || "").trim();
+  if (addressMethod) {
+    return addressMethod;
+  }
 
-  const shippable = (allEstimates || []).filter(x => x?.Estimate?.CanShip === true);
+  const serviceDescription = String(selectedShipping?.Estimate?.Service?.Description || "").trim();
+  if (serviceDescription) {
+    return serviceDescription;
+  }
 
-  for (const candidate of fallbackCandidates) {
-    const wanted = normalizeShipMethodText(candidate);
-
-    const match = shippable.find((x) => {
-      const serviceName = normalizeShipMethodText(x?.Estimate?.Service?.Name);
-      const serviceDescription = normalizeShipMethodText(x?.Estimate?.Service?.Description);
-
-      return serviceName === wanted || serviceDescription === wanted;
-    });
-
-    if (match) {
-      const matchedName = String(match?.Estimate?.Service?.Name || "").trim();
-      if (matchedName) return matchedName;
-
-      const matchedDescription = String(match?.Estimate?.Service?.Description || "").trim();
-      if (matchedDescription) return matchedDescription;
-    }
+  const serviceName = String(selectedShipping?.Estimate?.Service?.Name || "").trim();
+  if (serviceName) {
+    return serviceName;
   }
 
   return null;
