@@ -224,6 +224,7 @@ db.serialize(() => {
       quantity_q1 REAL NOT NULL,
       job_number TEXT,
       item_notes TEXT,
+      lang TEXT,
       status TEXT DEFAULT 'PENDING',
       message TEXT,
       FOREIGN KEY (import_id) REFERENCES excel_imports(id) ON DELETE CASCADE
@@ -494,9 +495,10 @@ db.run(`ALTER TABLE excel_import_lines ADD COLUMN need_to_apply_approvals TEXT`,
       await addColumnIfMissing("excel_import_lines", cols, "line_no", `line_no INTEGER`);
       await addColumnIfMissing("excel_import_lines", cols, "job_number", `job_number TEXT`);
       await addColumnIfMissing("excel_import_lines", cols, "item_notes", `item_notes TEXT`);
+      await addColumnIfMissing("excel_import_lines", cols, "lang", `lang TEXT`);
       await addColumnIfMissing("excel_import_lines", cols, "status", `status TEXT DEFAULT 'PENDING'`);
       await addColumnIfMissing("excel_import_lines", cols, "message", `message TEXT`);
-    }
+          }
 
     // order_batches
     {

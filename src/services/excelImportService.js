@@ -10,6 +10,13 @@ function normalizeText(value) {
     .toLowerCase();
 }
 
+function normalizeImportLang(value) {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (!normalized) return null;
+  if (["FR", "NL", "BIL"].includes(normalized)) return normalized;
+  return "__INVALID__";
+}
+
 function dbRun(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.run(sql, params, function (err) {
@@ -118,6 +125,7 @@ async function previewExcelImport(filePath, originalFilename = "upload.xlsx") {
     const jobNumber = r.job_number || null;
     const itemNotes = r.item_notes || null;
     const needToApplyApprovals = r.need_to_apply_approvals ?? null;
+    const lang = normalizeImportLang(r.lang ?? r.langue ?? r.lang_code ?? null);
 
     let status = "VALID";
     let message = null;
@@ -125,6 +133,10 @@ async function previewExcelImport(filePath, originalFilename = "upload.xlsx") {
     if (!storeCode || !lineType || !itemRef || quantity === null || quantity === undefined || quantity === "") {
       status = "ERROR";
       message = "Champs obligatoires manquants";
+      errors++;
+    } else if (lang === "__INVALID__") {
+      status = "ERROR";
+      message = "Lang invalide. Valeurs autorisées : FR, NL, BIL";
       errors++;
     } else {
       const store = await dbGet(
@@ -140,62 +152,62 @@ async function previewExcelImport(filePath, originalFilename = "upload.xlsx") {
 
       if (status === "VALID" && String(lineType).toUpperCase() === "COMPONENT") {
         const rawItemRef = String(itemRef).trim();
-const normalizedItemRef = normalizeText(rawItemRef);
+        const normalizedItemRef = normalizeText(rawItemRef);
 
-const allComponents = await new Promise((resolve, reject) => {
-  db.all(
-    `SELECT id, component_id, product_name FROM kit_components`,
-    [],
-    (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows || []);
-    }
-  );
-});
+        const allComponents = await new Promise((resolve, reject) => {
+          db.all(
+            `SELECT id, component_id, product_name FROM kit_components`,
+            [],
+            (err, rows) => {
+              if (err) return reject(err);
+              resolve(rows || []);
+            }
+          );
+        });
 
-const comp = allComponents.find((row) => {
-  const normalizedComponentId = normalizeText(row.component_id);
-  const normalizedProductName = normalizeText(row.product_name);
+        const comp = allComponents.find((row) => {
+          const normalizedComponentId = normalizeText(row.component_id);
+          const normalizedProductName = normalizeText(row.product_name);
 
-  return (
-    normalizedComponentId === normalizedItemRef ||
-    normalizedProductName === normalizedItemRef
-  );
-});
+          return (
+            normalizedComponentId === normalizedItemRef ||
+            normalizedProductName === normalizedItemRef
+          );
+        });
 
-if (!comp) {
-  status = "ERROR";
-  message = "Component inconnu";
-  errors++;
-}
+        if (!comp) {
+          status = "ERROR";
+          message = "Component inconnu";
+          errors++;
+        }
       }
 
       if (status === "VALID" && String(lineType).toUpperCase() === "KIT") {
         const rawItemRef = String(itemRef).trim();
-const normalizedItemRef = normalizeText(rawItemRef);
+        const normalizedItemRef = normalizeText(rawItemRef);
 
-const allKits = await new Promise((resolve, reject) => {
-  db.all(`SELECT id, part_id, kit_name FROM kits`, [], (err, rows) => {
-    if (err) return reject(err);
-    resolve(rows || []);
-  });
-});
+        const allKits = await new Promise((resolve, reject) => {
+          db.all(`SELECT id, part_id, kit_name FROM kits`, [], (err, rows) => {
+            if (err) return reject(err);
+            resolve(rows || []);
+          });
+        });
 
-const kit = allKits.find((row) => {
-  const normalizedPartId = normalizeText(row.part_id);
-  const normalizedKitName = normalizeText(row.kit_name);
+        const kit = allKits.find((row) => {
+          const normalizedPartId = normalizeText(row.part_id);
+          const normalizedKitName = normalizeText(row.kit_name);
 
-  return (
-    normalizedPartId === normalizedItemRef ||
-    normalizedKitName === normalizedItemRef
-  );
-});
+          return (
+            normalizedPartId === normalizedItemRef ||
+            normalizedKitName === normalizedItemRef
+          );
+        });
 
-if (!kit) {
-  status = "ERROR";
-  message = "Kit inconnu";
-  errors++;
-}
+        if (!kit) {
+          status = "ERROR";
+          message = "Kit inconnu";
+          errors++;
+        }
       }
     }
 
@@ -204,42 +216,44 @@ if (!kit) {
     await dbRun(
       `
       INSERT INTO excel_import_lines (
-  import_id,
-  row_number,
-  store_code,
-  order_group,
-  po_number,
-  requested_ship_date,
-  ship_method_name,
-  line_no,
-  line_type,
-  item_ref,
-  quantity_q1,
-  job_number,
-  item_notes,
-  need_to_apply_approvals,
-  status,
-  message
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        import_id,
+        row_number,
+        store_code,
+        order_group,
+        po_number,
+        requested_ship_date,
+        ship_method_name,
+        line_no,
+        line_type,
+        item_ref,
+        quantity_q1,
+        job_number,
+        item_notes,
+        need_to_apply_approvals,
+        lang,
+        status,
+        message
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
-  importId,
-  row.rowNumber,
-  storeCode ? String(storeCode).trim() : null,
-  orderGroup ? String(orderGroup).trim() : "A",
-  poNumber,
-  requestedShipDate,
-  shipMethodName,
-  lineNo,
-  lineType ? String(lineType).trim().toUpperCase() : null,
-  itemRef ? String(itemRef).trim() : null,
-  quantity,
-  jobNumber,
-  itemNotes,
-  needToApplyApprovals,
-  status,
-  message
-]
+        importId,
+        row.rowNumber,
+        storeCode ? String(storeCode).trim() : null,
+        orderGroup ? String(orderGroup).trim() : "A",
+        poNumber,
+        requestedShipDate,
+        shipMethodName,
+        lineNo,
+        lineType ? String(lineType).trim().toUpperCase() : null,
+        itemRef ? String(itemRef).trim() : null,
+        quantity,
+        jobNumber,
+        itemNotes,
+        needToApplyApprovals,
+        lang === "__INVALID__" ? null : lang,
+        status,
+        message
+      ]
     );
   }
 
