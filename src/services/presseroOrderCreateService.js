@@ -419,18 +419,19 @@ if (!batch.ship_method_name && selectedShipMethodName) {
   );
 
   return {
-    batch,
-    store,
-    billAddress,
-    shipAddress,
-    items: enrichedItems,
-    totals: {
-      totalHt: Number(totals.totalHt.toFixed(2)),
-      totalShipping: Number(totals.totalShipping.toFixed(2)),
-      totalTax: Number(totals.totalTax.toFixed(2)),
-      totalTtc: Number(totals.totalTtc.toFixed(2))
-    }
-  };
+  batch,
+  store,
+  billAddress,
+  shipAddress,
+  selectedShipMethodName,
+  items: enrichedItems,
+  totals: {
+    totalHt: Number(totals.totalHt.toFixed(2)),
+    totalShipping: Number(totals.totalShipping.toFixed(2)),
+    totalTax: Number(totals.totalTax.toFixed(2)),
+    totalTtc: Number(totals.totalTtc.toFixed(2))
+  }
+};
 }
 
 function buildOrderItemsForCreate(batchId, enrichedItems, shipAddress, selectedShipMethodName) {
@@ -477,6 +478,18 @@ const { batch, billAddress, shipAddress, selectedShipMethodName, items: enriched
 );
 
 console.log("SELECTED SHIP METHOD NAME =", selectedShipMethodName);
+console.log("ORDER ITEMS WITH SHIPPING =", JSON.stringify(
+  orderItems.map((x) => ({
+    productId: x.productId,
+    quantity: x.quantity,
+    shipMethodName: x.shipMethodName,
+    price: x.price,
+    tax: x.tax,
+    shipping: x.shipping
+  })),
+  null,
+  2
+));
 
     const payload = {
       siteId: batch.site_id,
