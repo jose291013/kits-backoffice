@@ -123,28 +123,54 @@ router.get("/batches", async (req, res) => {
   try {
     const rows = await dbAll(`
   SELECT
-    id,
-    import_id,
-    store_code,
-    order_group,
-    presso_user_id,
-    site_id,
-    bill_to_address_id,
-    ship_to_address_id,
-    po_number,
-    requested_ship_date,
-    ship_method_name,
-    status,
-    total_lines,
-    created_at,
-    executed_at,
-    message,
-    need_to_apply_approvals,
-    presso_order_id,
-    presso_order_number,
-    presso_order_date
-  FROM order_batches
-  ORDER BY id DESC
+    ob.id,
+    ob.import_id,
+    ob.store_code,
+    ob.order_group,
+    ob.presso_user_id,
+    ob.site_id,
+    ob.bill_to_address_id,
+    ob.ship_to_address_id,
+    ob.po_number,
+    ob.requested_ship_date,
+    ob.ship_method_name,
+    ob.status,
+    ob.total_lines,
+    ob.created_at,
+    ob.executed_at,
+    ob.message,
+    ob.need_to_apply_approvals,
+    ob.presso_order_id,
+    ob.presso_order_number,
+    ob.presso_order_date,
+    ROUND(COALESCE(SUM(obi.price), 0), 2) AS total_ht,
+    ROUND(COALESCE(SUM(obi.shipping), 0), 2) AS total_shipping,
+    ROUND(COALESCE(SUM(obi.tax), 0), 2) AS total_tax,
+    ROUND(COALESCE(SUM(obi.price), 0) + COALESCE(SUM(obi.shipping), 0) + COALESCE(SUM(obi.tax), 0), 2) AS total_ttc
+  FROM order_batches ob
+  LEFT JOIN order_batch_items obi ON obi.batch_id = ob.id
+  GROUP BY
+    ob.id,
+    ob.import_id,
+    ob.store_code,
+    ob.order_group,
+    ob.presso_user_id,
+    ob.site_id,
+    ob.bill_to_address_id,
+    ob.ship_to_address_id,
+    ob.po_number,
+    ob.requested_ship_date,
+    ob.ship_method_name,
+    ob.status,
+    ob.total_lines,
+    ob.created_at,
+    ob.executed_at,
+    ob.message,
+    ob.need_to_apply_approvals,
+    ob.presso_order_id,
+    ob.presso_order_number,
+    ob.presso_order_date
+  ORDER BY ob.id DESC
 `);
 
     res.json({ success: true, batches: rows });

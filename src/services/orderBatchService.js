@@ -1,4 +1,5 @@
 const db = require("../repositories/db");
+const { hydrateBatchFinancials } = require("./presseroOrderCreateService");
 
 function dbRun(sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -404,6 +405,7 @@ console.log("BUILD APPROVAL DEBUG =", {
       `,
       [batchItemCount, batchId]
     );
+        await hydrateBatchFinancials(batchId);
   }
 
   return {

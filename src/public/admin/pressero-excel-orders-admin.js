@@ -537,6 +537,14 @@ function toggleSidebar() {
     return `<span class="eo-badge ${cls}">${s || "N/A"}</span>`;
   }
 
+  function money(value) {
+  const n = Number(value || 0);
+  return n.toLocaleString("fr-BE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }) + " €";
+}
+
   async function loadStores() {
     const data = await apiJson("/stores");
     const tbody = qs("#eo-stores-body");
@@ -664,68 +672,91 @@ tbody.querySelectorAll("button[data-action='build']").forEach((btn) => {
 }
 
   async function loadBatches() {
-    const data = await apiJson("/backoffice/batches");
-    const tbody = qs("#eo-batches-body");
-    if (!tbody) return;
-    tbody.innerHTML = "";
+  const data = await apiJson("/backoffice/batches");
+  const tbody = qs("#eo-batches-body");
+  if (!tbody) return;
+  tbody.innerHTML = "";
 
-    const batches = data.batches || [];
-    const readyToSendCount = batches.filter((b) => {
-  return (
-    String(b.status || "").toUpperCase() === "READY" &&
-    !b.presso_order_number &&
-    !b.presso_order_id
-  );
-}).length;
+  const batches = data.batches || [];
 
-qs("#kpi-ready").textContent = readyToSendCount;
+  const readyToSendCount = batches.filter((b) => {
+    return (
+      String(b.status || "").toUpperCase() === "READY" &&
+      !b.presso_order_number &&
+      !b.presso_order_id
+    );
+  }).length;
 
-    batches.forEach((b) => {
-      const tr = ce("tr");
-      tr.innerHTML = `
-  <td>${b.id}</td>
-  <td>${b.import_id || ""}</td>
-  <td>${b.store_code || ""}</td>
-  <td>${statusBadge(b.status)}</td>
-  <td>${b.total_lines || 0}</td>
-  <td>${Number(b.need_to_apply_approvals) === 1 ? "Oui" : "Non"}</td>
-  <td>${b.presso_order_number || ""}</td>
-  <td>${b.executed_at || ""}</td>
-  <td>${b.message || ""}</td>
-  <td class="eo-actions">
-  <button class="eo-btn secondary" data-action="items" data-id="${b.id}">Voir items</button>
-  ${
-    b.presso_order_number || String(b.status || "").toUpperCase() === "SENT"
-      ? `<button class="eo-btn secondary" disabled>Déjà envoyée</button>`
-      : `<button class="eo-btn green" data-action="send" data-id="${b.id}">Envoyer</button>`
+  qs("#kpi-ready").textContent = readyToSendCount;
+
+  const totals = batches.reduce((acc, b) => {
+    acc.ht += Number(b.total_ht || 0);
+    acc.shipping += Number(b.total_shipping || 0);
+    acc.tax += Number(b.total_tax || 0);
+    acc.ttc += Number(b.total_ttc || 0);
+    return acc;
+  }, { ht: 0, shipping: 0, tax: 0, ttc: 0 });
+
+  const kpiBox = qs("#eo-batches-kpis");
+  if (kpiBox) {
+    kpiBox.innerHTML = `
+      <span class="eo-badge eo-ready">HT: ${money(totals.ht)}</span>
+      <span class="eo-badge eo-ready">Shipping: ${money(totals.shipping)}</span>
+      <span class="eo-badge eo-ready">Taxe: ${money(totals.tax)}</span>
+      <span class="eo-badge eo-ok">TTC: ${money(totals.ttc)}</span>
+    `;
   }
-</td>
-`;
-      tbody.appendChild(tr);
-    });
 
-    tbody.querySelectorAll("button[data-action='items']").forEach((btn) => {
-  btn.onclick = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    await loadBatchItems(btn.dataset.id);
-    showView("detail-panel");
-  };
-});
+  batches.forEach((b) => {
+    const tr = ce("tr");
+    tr.innerHTML = `
+      <td>${b.id}</td>
+      <td>${b.import_id || ""}</td>
+      <td>${b.store_code || ""}</td>
+      <td>${statusBadge(b.status)}</td>
+      <td>${b.total_lines || 0}</td>
+      <td>${money(b.total_ht)}</td>
+      <td>${money(b.total_shipping)}</td>
+      <td>${money(b.total_tax)}</td>
+      <td><strong>${money(b.total_ttc)}</strong></td>
+      <td>${Number(b.need_to_apply_approvals) === 1 ? "Oui" : "Non"}</td>
+      <td>${b.presso_order_number || ""}</td>
+      <td>${b.executed_at || ""}</td>
+      <td>${b.message || ""}</td>
+      <td class="eo-actions">
+        <button class="eo-btn secondary" data-action="items" data-id="${b.id}">Voir items</button>
+        ${
+          b.presso_order_number || String(b.status || "").toUpperCase() === "SENT"
+            ? `<button class="eo-btn secondary" disabled>Déjà envoyée</button>`
+            : `<button class="eo-btn green" data-action="send" data-id="${b.id}">Envoyer</button>`
+        }
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
 
-tbody.querySelectorAll("button[data-action='send']").forEach((btn) => {
-  btn.onclick = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setBusy(btn, true, "Envoi...");
-    try {
-      await sendBatch(btn.dataset.id);
-    } finally {
-      setBusy(btn, false);
-    }
-  };
-});
-  }
+  tbody.querySelectorAll("button[data-action='items']").forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      await loadBatchItems(btn.dataset.id);
+      showView("detail-panel");
+    };
+  });
+
+  tbody.querySelectorAll("button[data-action='send']").forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setBusy(btn, true, "Envoi...");
+      try {
+        await sendBatch(btn.dataset.id);
+      } finally {
+        setBusy(btn, false);
+      }
+    };
+  });
+}
 
   async function loadBatchItems(batchId) {
     const data = await apiJson(`/backoffice/batches/${batchId}/items`);
@@ -1112,27 +1143,40 @@ function renderStoreImportResults(res, mode) {
             <h3>Commandes prêtes à envoyer</h3>
             <p class="eo-card-sub">Vérifiez les commandes préparées, puis envoyez-les vers Pressero.</p>
 
-            <div class="eo-actions" style="margin-bottom:14px">
-              <button class="eo-btn secondary" id="eo-btn-refresh-batches">Rafraîchir</button>
-              <button class="eo-btn yellow" id="eo-btn-cleanup-orders">Vider les tests commandes</button>
-              <button type="button" class="eo-btn green" id="eo-btn-send-all-ready">Tout envoyer</button>
-            </div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px">
+  <div class="eo-actions">
+    <button class="eo-btn secondary" id="eo-btn-refresh-batches">Rafraîchir</button>
+    <button class="eo-btn yellow" id="eo-btn-cleanup-orders">Vider les tests commandes</button>
+    <button type="button" class="eo-btn green" id="eo-btn-send-all-ready">Tout envoyer</button>
+  </div>
+
+  <div id="eo-batches-kpis" class="eo-actions" style="gap:10px">
+    <span class="eo-badge eo-ready">HT: 0,00 €</span>
+    <span class="eo-badge eo-ready">Shipping: 0,00 €</span>
+    <span class="eo-badge eo-ready">Taxe: 0,00 €</span>
+    <span class="eo-badge eo-ok">TTC: 0,00 €</span>
+  </div>
+</div>
 
             <div class="eo-table-wrap">
               <table class="eo-table">
                 <thead>
   <tr>
-    <th>ID</th>
-    <th>Import</th>
-    <th>Store</th>
-    <th>Statut</th>
-    <th>Lignes</th>
-    <th>Approbation</th>
-    <th>N° commande</th>
-    <th>Envoyé le</th>
-    <th>Message</th>
-    <th>Actions</th>
-  </tr>
+  <th>ID</th>
+  <th>Import</th>
+  <th>Store</th>
+  <th>Statut</th>
+  <th>Lignes</th>
+  <th>HT</th>
+  <th>Shipping</th>
+  <th>Taxe</th>
+  <th>Total TTC</th>
+  <th>Approbation</th>
+  <th>N° commande</th>
+  <th>Envoyé le</th>
+  <th>Message</th>
+  <th>Actions</th>
+</tr>
 </thead>
                 <tbody id="eo-batches-body"></tbody>
               </table>

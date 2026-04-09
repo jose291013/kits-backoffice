@@ -225,6 +225,197 @@ async function estimateShippingCost(batch, shipAddress, totalWeight) {
   };
 }
 
+async function hydrateBatchFinancials(batchId) {
+  const batch = await dbGet(
+    `
+    SELECT *
+    FROM order_batches
+    WHERE id = ?
+    `,
+    [batchId]
+  );
+
+  if (!batch) {
+    throw new Error(`Batch introuvable: ${batchId}`);
+  }
+
+  if (!batch.presso_user_id || !batch.site_id) {
+    throw new Error(`Batch incomplet: presso_user_id ou site_id manquant pour ${batchId}`);
+  }
+
+  const store = await dbGet(
+    `
+    SELECT *
+    FROM stores
+    WHERE store_code = ?
+    `,
+    [batch.store_code]
+  );
+
+  if (!store) {
+    throw new Error(`Store introuvable pour batch ${batchId}`);
+  }
+
+  const batchItems = await dbAll(
+    `
+    SELECT *
+    FROM order_batch_items
+    WHERE batch_id = ?
+      AND status = 'READY'
+    ORDER BY id ASC
+    `,
+    [batchId]
+  );
+
+  if (!batchItems.length) {
+    throw new Error(`Aucun item READY dans le batch ${batchId}`);
+  }
+
+  const billAddress = await getAddressById(store.id, batch.bill_to_address_id);
+  const shipAddress = await getAddressById(store.id, batch.ship_to_address_id);
+
+  if (!billAddress) {
+    throw new Error(`Adresse de facturation introuvable pour batch ${batchId}`);
+  }
+
+  if (!shipAddress) {
+    throw new Error(`Adresse de livraison introuvable pour batch ${batchId}`);
+  }
+
+  const pricedItems = [];
+  let totalWeight = 0;
+
+  for (const item of batchItems) {
+    if (!item.product_id) {
+      throw new Error(`Item ${item.id} sans product_id`);
+    }
+
+    const pricing = await priceBatchItem(batch, item);
+
+    const linePrice = Number(pricing.price || 0);
+    const lineWeight = Number(pricing.weight || 0);
+
+    totalWeight += lineWeight;
+
+    pricedItems.push({
+      item,
+      price: linePrice,
+      weight: lineWeight
+    });
+  }
+
+  const shippingEstimation = await estimateShippingCost(batch, shipAddress, totalWeight);
+  const totalShipping = Number(shippingEstimation.shippingCost || 0);
+
+  const totalWeightForSplit =
+    pricedItems.reduce((sum, x) => sum + Number(x.weight || 0), 0) || 1;
+
+  const enrichedItems = pricedItems.map((x, index) => {
+    let lineShipping = 0;
+
+    if (index === pricedItems.length - 1) {
+      const alreadyAllocated = pricedItems
+        .slice(0, index)
+        .reduce((sum, prev, prevIndex) => {
+          const prevShipping = Number(
+            (
+              totalShipping *
+              (Number(pricedItems[prevIndex].weight || 0) / totalWeightForSplit)
+            ).toFixed(2)
+          );
+          return sum + prevShipping;
+        }, 0);
+
+      lineShipping = Number((totalShipping - alreadyAllocated).toFixed(2));
+    } else {
+      lineShipping = Number(
+        (
+          totalShipping *
+          (Number(x.weight || 0) / totalWeightForSplit)
+        ).toFixed(2)
+      );
+    }
+
+    const lineTax = Number(((x.price + lineShipping) * DEFAULT_TAX_RATE).toFixed(2));
+    const lineTotalTtc = Number((x.price + lineShipping + lineTax).toFixed(2));
+
+    return {
+      item: x.item,
+      price: x.price,
+      weight: x.weight,
+      shipping: lineShipping,
+      tax: lineTax,
+      totalTtc: lineTotalTtc
+    };
+  });
+
+  for (const row of enrichedItems) {
+    await dbRun(
+      `
+      UPDATE order_batch_items
+      SET price = ?, weight = ?, tax = ?, shipping = ?, message = ?
+      WHERE id = ?
+      `,
+      [
+        row.price,
+        row.weight,
+        row.tax,
+        row.shipping,
+        null,
+        row.item.id
+      ]
+    );
+  }
+
+  const totals = enrichedItems.reduce(
+    (acc, row) => {
+      acc.totalHt += Number(row.price || 0);
+      acc.totalShipping += Number(row.shipping || 0);
+      acc.totalTax += Number(row.tax || 0);
+      acc.totalTtc += Number(row.totalTtc || 0);
+      return acc;
+    },
+    {
+      totalHt: 0,
+      totalShipping: 0,
+      totalTax: 0,
+      totalTtc: 0
+    }
+  );
+
+  return {
+    batch,
+    store,
+    billAddress,
+    shipAddress,
+    items: enrichedItems,
+    totals: {
+      totalHt: Number(totals.totalHt.toFixed(2)),
+      totalShipping: Number(totals.totalShipping.toFixed(2)),
+      totalTax: Number(totals.totalTax.toFixed(2)),
+      totalTtc: Number(totals.totalTtc.toFixed(2))
+    }
+  };
+}
+
+function buildOrderItemsForCreate(batchId, enrichedItems, shipAddress) {
+  return enrichedItems.map((row) => ({
+    productId: row.item.product_id,
+    jobNumber: row.item.job_number || `BATCH-${batchId}-ITEM-${row.item.id}`,
+    projectedShipDate: row.item.requested_ship_date || null,
+    quantity: Number(row.item.q1 || 0),
+    price: row.price,
+    tax: row.tax,
+    discount: 0,
+    shipping: row.shipping,
+    weight: row.weight,
+    itemNotes: row.item.item_notes || null,
+    shipMethodName: row.item.ship_method_name || null,
+    ...buildShipToFields(shipAddress),
+    edocSessionId: null
+  }));
+}
+
 async function submitBatchToPressero(batchId) {
   await dbRun(
     `
@@ -236,163 +427,14 @@ async function submitBatchToPressero(batchId) {
   );
 
   try {
-    const batch = await dbGet(
-      `
-      SELECT *
-      FROM order_batches
-      WHERE id = ?
-      `,
-      [batchId]
-    );
-
-    if (!batch) {
-      throw new Error(`Batch introuvable: ${batchId}`);
-    }
+    const hydrated = await hydrateBatchFinancials(batchId);
+    const { batch, billAddress, shipAddress, items: enrichedItems } = hydrated;
 
     if (batch.presso_order_number || batch.presso_order_id || String(batch.status || "").toUpperCase() === "SENT") {
-  throw new Error(`Le batch ${batchId} a déjà été envoyé à Pressero`);
-}
-
-    if (!batch.presso_user_id || !batch.site_id) {
-      throw new Error("Batch incomplet: presso_user_id ou site_id manquant");
+      throw new Error(`Le batch ${batchId} a déjà été envoyé à Pressero`);
     }
 
-    const store = await dbGet(
-      `
-      SELECT *
-      FROM stores
-      WHERE store_code = ?
-      `,
-      [batch.store_code]
-    );
-
-    if (!store) {
-      throw new Error(`Store introuvable pour batch ${batchId}`);
-    }
-
-    const batchItems = await dbAll(
-      `
-      SELECT *
-      FROM order_batch_items
-      WHERE batch_id = ?
-        AND status = 'READY'
-      ORDER BY id ASC
-      `,
-      [batchId]
-    );
-
-    if (!batchItems.length) {
-      throw new Error(`Aucun item READY dans le batch ${batchId}`);
-    }
-
-    const billAddress = await getAddressById(store.id, batch.bill_to_address_id);
-    const shipAddress = await getAddressById(store.id, batch.ship_to_address_id);
-
-    if (!billAddress) {
-      throw new Error(`Adresse de facturation introuvable pour batch ${batchId}`);
-    }
-
-    if (!shipAddress) {
-      throw new Error(`Adresse de livraison introuvable pour batch ${batchId}`);
-    }
-
-    const pricedItems = [];
-    let totalWeight = 0;
-
-    // 1) pricing + poids uniquement
-    for (const item of batchItems) {
-      if (!item.product_id) {
-        throw new Error(`Item ${item.id} sans product_id`);
-      }
-
-      const pricing = await priceBatchItem(batch, item);
-
-      const linePrice = Number(pricing.price || 0);
-      const lineWeight = Number(pricing.weight || 0);
-
-      totalWeight += lineWeight;
-
-      pricedItems.push({
-        item,
-        price: linePrice,
-        weight: lineWeight
-      });
-    }
-
-    // 2) estimation du shipping du batch
-    const shippingEstimation = await estimateShippingCost(batch, shipAddress, totalWeight);
-    const totalShipping = Number(shippingEstimation.shippingCost || 0);
-
-    // 3) répartition du shipping au prorata du poids + calcul TVA
-    const totalWeightForSplit =
-      pricedItems.reduce((sum, x) => sum + Number(x.weight || 0), 0) || 1;
-
-    const orderItems = pricedItems.map((x, index) => {
-      let lineShipping = 0;
-
-      if (index === pricedItems.length - 1) {
-        const alreadyAllocated = pricedItems
-          .slice(0, index)
-          .reduce((sum, prev, prevIndex) => {
-            const prevShipping = Number(
-              (
-                totalShipping *
-                (Number(pricedItems[prevIndex].weight || 0) / totalWeightForSplit)
-              ).toFixed(2)
-            );
-            return sum + prevShipping;
-          }, 0);
-
-        lineShipping = Number((totalShipping - alreadyAllocated).toFixed(2));
-      } else {
-        lineShipping = Number(
-          (
-            totalShipping *
-            (Number(x.weight || 0) / totalWeightForSplit)
-          ).toFixed(2)
-        );
-      }
-
-      const lineTax = Number(((x.price + lineShipping) * DEFAULT_TAX_RATE).toFixed(2));
-
-      return {
-        productId: x.item.product_id,
-        jobNumber: x.item.job_number || `BATCH-${batchId}-ITEM-${x.item.id}`,
-        projectedShipDate: batch.requested_ship_date || null,
-        quantity: Number(x.item.q1 || 0),
-        price: x.price,
-        tax: lineTax,
-        discount: 0,
-        shipping: lineShipping,
-        weight: x.weight,
-        itemNotes: x.item.item_notes || null,
-        shipMethodName: batch.ship_method_name || null,
-        ...buildShipToFields(shipAddress),
-        edocSessionId: null
-      };
-    });
-
-    // 4) mise à jour DB avec les vraies valeurs finales
-    for (let i = 0; i < pricedItems.length; i++) {
-      const x = pricedItems[i];
-      const orderItem = orderItems[i];
-
-      await dbRun(
-        `
-        UPDATE order_batch_items
-        SET price = ?, weight = ?, tax = ?, shipping = ?, message = ?
-        WHERE id = ?
-        `,
-        [
-          orderItem.price,
-          orderItem.weight,
-          orderItem.tax,
-          orderItem.shipping,
-          null,
-          x.item.id
-        ]
-      );
-    }
+    const orderItems = buildOrderItemsForCreate(batchId, enrichedItems, shipAddress);
 
     const payload = {
       siteId: batch.site_id,
@@ -405,9 +447,9 @@ async function submitBatchToPressero(batchId) {
       paymentMethod: process.env.PRESSERO_PAYMENT_METHOD || null,
       budgetId: null,
       processingOptions: {
-  needToApplyApprovals: Number(batch.need_to_apply_approvals) === 1,
-  needToGenerateNotifications: true
-},
+        needToApplyApprovals: Number(batch.need_to_apply_approvals) === 1,
+        needToGenerateNotifications: true
+      },
       items: orderItems
     };
 
@@ -425,40 +467,40 @@ async function submitBatchToPressero(batchId) {
     const pressoOrderDate = responseData.OrderDate || null;
 
     await dbRun(
-  `
-  UPDATE order_batches
-  SET
-    payload_json = ?,
-    response_json = ?,
-    status = ?,
-    executed_at = CURRENT_TIMESTAMP,
-    message = ?,
-    presso_order_id = ?,
-    presso_order_number = ?,
-    presso_order_date = ?
-  WHERE id = ?
-  `,
-  [
-    JSON.stringify(payload),
-    JSON.stringify(responseData),
-    "SENT",
-    null,
-    pressoOrderId,
-    pressoOrderNumber,
-    pressoOrderDate,
-    batchId
-  ]
-);
+      `
+      UPDATE order_batches
+      SET
+        payload_json = ?,
+        response_json = ?,
+        status = ?,
+        executed_at = CURRENT_TIMESTAMP,
+        message = ?,
+        presso_order_id = ?,
+        presso_order_number = ?,
+        presso_order_date = ?
+      WHERE id = ?
+      `,
+      [
+        JSON.stringify(payload),
+        JSON.stringify(responseData),
+        "SENT",
+        null,
+        pressoOrderId,
+        pressoOrderNumber,
+        pressoOrderDate,
+        batchId
+      ]
+    );
 
     return {
-  success: true,
-  batchId,
-  payload,
-  response: responseData,
-  pressoOrderId,
-  pressoOrderNumber,
-  pressoOrderDate
-};
+      success: true,
+      batchId,
+      payload,
+      response: responseData,
+      pressoOrderId,
+      pressoOrderNumber,
+      pressoOrderDate
+    };
   } catch (error) {
     await dbRun(
       `
@@ -483,5 +525,6 @@ async function submitBatchToPressero(batchId) {
 }
 
 module.exports = {
-  submitBatchToPressero
+  submitBatchToPressero,
+  hydrateBatchFinancials
 };
