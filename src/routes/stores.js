@@ -108,14 +108,14 @@ router.get("/export", async (req, res) => {
     db.all(
       `
       SELECT
-        store_code,
-        store_name,
-        presso_user_email,
-        sync_status,
-        sync_message,
-        last_synced_at
-      FROM stores
-      ORDER BY store_code ASC
+  store_code,
+  store_name,
+  presso_user_email AS pressero_user_email,
+  sync_status,
+  sync_message,
+  last_synced_at
+FROM stores
+ORDER BY store_code ASC
       `,
       [],
       async (err, rows) => {
