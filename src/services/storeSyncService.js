@@ -427,17 +427,35 @@ async function syncStoreFromPressero({ storeCode, storeName, pressoUserEmail }) 
       addresses: savedAddresses
     };
   } catch (error) {
-    await logSync(
-      "ADDRESSBOOK",
-      safeStoreCode,
-      "ERROR",
-      error.message,
-      { storeCode: safeStoreCode, storeName: safeStoreName, pressoUserEmail: safeEmail },
-      null
-    );
+  await logSync(
+    "ADDRESSBOOK",
+    safeStoreCode,
+    "ERROR",
+    error.message,
+    { storeCode: safeStoreCode, storeName: safeStoreName, pressoUserEmail: safeEmail },
+    null
+  );
 
-    throw error;
-  }
+  await dbRun(
+    `
+    UPDATE stores
+    SET
+      sync_status = ?,
+      sync_message = ?,
+      last_synced_at = ?,
+      presso_user_id = NULL,
+      site_id = NULL,
+      address_book_id = NULL,
+      preferred_address_id = NULL,
+      billing_address_id = NULL,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE store_code = ?
+    `,
+    ["FAILED", error.message, new Date().toISOString(), safeStoreCode]
+  );
+
+  throw error;
+}
 }
 
 module.exports = {

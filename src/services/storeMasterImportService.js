@@ -124,24 +124,33 @@ async function importStoresMaster(filePath, originalFilename = "stores_master.xl
     );
 
     if (existing) {
-      await dbRun(
-        `
-        UPDATE stores
-        SET
-          store_name = ?,
-          presso_user_email = ?,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE store_code = ?
-        `,
-        [storeName, email, storeCode]
-      );
-      updated++;
-      details.push({
-        rowNumber: row.rowNumber,
-        status: "UPDATED",
-        storeCode
-      });
-    } else {
+  await dbRun(
+    `
+    UPDATE stores
+    SET
+      store_name = ?,
+      presso_user_email = ?,
+      presso_user_id = NULL,
+      site_id = NULL,
+      address_book_id = NULL,
+      preferred_address_id = NULL,
+      billing_address_id = NULL,
+      sync_status = ?,
+      sync_message = NULL,
+      last_synced_at = NULL,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE store_code = ?
+    `,
+    [storeName, email, "PENDING", storeCode]
+  );
+
+  updated++;
+  details.push({
+    rowNumber: row.rowNumber,
+    status: "UPDATED",
+    storeCode
+  });
+} else {
       await dbRun(
         `
         INSERT INTO stores (
