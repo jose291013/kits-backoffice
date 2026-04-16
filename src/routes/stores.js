@@ -166,10 +166,12 @@ router.get("/export", async (req, res) => {
           "Content-Type",
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         );
-        res.setHeader(
-          "Content-Disposition",
-          'attachment; filename="stores_master_export.xlsx"'
-        );
+        const fileName = `stores-master-export-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.xlsx`;
+
+res.setHeader(
+  "Content-Disposition",
+  `attachment; filename="${fileName}"`
+);
 
         await workbook.xlsx.write(res);
         res.end();
