@@ -668,11 +668,12 @@ tbody.querySelectorAll("button[data-action='build']").forEach((btn) => {
   const res = await apiJson(`/orders/build-from-import/${importId}`, { method: "POST" });
   log(`Préparation import ${importId}: ${JSON.stringify(res)}`, res.success ? "success" : "error");
   await loadImports();
-  await loadBatches();
+await loadBatches();
+await loadBatchesHistory();
 }
 
   async function loadBatches() {
-  const data = await apiJson("/backoffice/batches");
+  const data = await apiJson("/backoffice/batches/active");
   const tbody = qs("#eo-batches-body");
   if (!tbody) return;
   tbody.innerHTML = "";
@@ -758,6 +759,46 @@ tbody.querySelectorAll("button[data-action='build']").forEach((btn) => {
   });
 }
 
+async function loadBatchesHistory() {
+  const data = await apiJson("/backoffice/batches/history");
+  const tbody = qs("#eo-batches-history-body");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  const batches = data.batches || [];
+
+  batches.forEach((b) => {
+    const tr = ce("tr");
+    tr.innerHTML = `
+      <td>${b.id}</td>
+      <td>${b.import_id || ""}</td>
+      <td>${b.store_code || ""}</td>
+      <td>${statusBadge(b.status)}</td>
+      <td>${b.total_lines || 0}</td>
+      <td>${money(b.total_ht)}</td>
+      <td>${money(b.total_shipping)}</td>
+      <td>${money(b.total_tax)}</td>
+      <td><strong>${money(b.total_ttc)}</strong></td>
+      <td>${b.presso_order_number || ""}</td>
+      <td>${b.executed_at || ""}</td>
+      <td>${b.message || ""}</td>
+      <td class="eo-actions">
+        <button class="eo-btn secondary" data-action="items-history" data-id="${b.id}">Voir items</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll("button[data-action='items-history']").forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      await loadBatchItems(btn.dataset.id);
+      showView("detail-panel");
+    };
+  });
+}
+
   async function loadBatchItems(batchId) {
     const data = await apiJson(`/backoffice/batches/${batchId}/items`);
     const box = qs("#eo-detail-box");
@@ -803,7 +844,8 @@ tbody.querySelectorAll("button[data-action='build']").forEach((btn) => {
   const res = await apiJson(`/orders/submit-batch/${batchId}`, { method: "POST" });
   log(`Batch ${batchId}: ${JSON.stringify(res)}`, res.success ? "success" : "error");
   await loadImports();
-  await loadBatches();
+await loadBatches();
+await loadBatchesHistory();
 }
 
   async function cleanupOrders() {
@@ -823,7 +865,8 @@ tbody.querySelectorAll("button[data-action='build']").forEach((btn) => {
   );
 
   await loadImports();
-  await loadBatches();
+await loadBatches();
+await loadBatchesHistory();
 
   const box = qs("#eo-detail-box");
   if (box) {
@@ -885,8 +928,9 @@ async function sendAllReady(button) {
     const res = await apiJson("/backoffice/submit-all-ready", { method: "POST" });
     log(`Envoi global: ${JSON.stringify(res)}`, res.success ? "success" : "error");
     await loadImports();
-    await loadBatches();
-    showView("batches-panel");
+await loadBatches();
+await loadBatchesHistory();
+showView("batches-panel");
   } finally {
     setBusy(button, false);
   }
@@ -914,8 +958,9 @@ async function buildAllImports(button) {
     }
 
     await loadImports();
-    await loadBatches();
-    showView("batches-panel");
+await loadBatches();
+await loadBatchesHistory();
+showView("batches-panel");
   } finally {
     setBusy(button, false);
   }
@@ -1041,6 +1086,11 @@ function renderStoreImportResults(res, mode) {
             <span class="eo-nav-icon">📦</span>
             <span class="eo-nav-label">Commandes prêtes à envoyer</span>
           </button>
+
+          <button type="button" class="eo-nav-btn" data-nav="batches-history-panel">
+  <span class="eo-nav-icon">🗂️</span>
+  <span class="eo-nav-label">Historique des commandes</span>
+</button>
 
           <button type="button" class="eo-nav-btn" data-nav="detail-panel">
             <span class="eo-nav-icon">📝</span>
@@ -1184,6 +1234,42 @@ function renderStoreImportResults(res, mode) {
           </div>
         </section>
 
+        <section class="eo-view" data-view="batches-history-panel">
+  <div class="eo-card">
+    <h3>Historique des commandes envoyées</h3>
+    <p class="eo-card-sub">Consultez les batchs déjà envoyés à Pressero sans encombrer l’écran opérationnel.</p>
+
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px">
+      <div class="eo-actions">
+        <button class="eo-btn secondary" id="eo-btn-refresh-batches-history">Rafraîchir</button>
+      </div>
+    </div>
+
+    <div class="eo-table-wrap">
+      <table class="eo-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Import</th>
+            <th>Store</th>
+            <th>Statut</th>
+            <th>Lignes</th>
+            <th>HT</th>
+            <th>Shipping</th>
+            <th>Taxe</th>
+            <th>Total TTC</th>
+            <th>N° commande</th>
+            <th>Envoyé le</th>
+            <th>Message</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="eo-batches-history-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
         <section class="eo-view" data-view="detail-panel">
   <div class="eo-card">
     <h3>Détail</h3>
@@ -1278,6 +1364,7 @@ qs("#eo-btn-build-all-imports").onclick = async (e) => {
     qs("#eo-btn-refresh-imports").onclick = loadImports;
     qs("#eo-btn-refresh-batches").onclick = loadBatches;
     qs("#eo-btn-cleanup-orders").onclick = cleanupOrders;
+    qs("#eo-btn-refresh-batches-history").onclick = loadBatchesHistory;
     qs("#eo-toggle-sidebar").onclick = (e) => {
   e.preventDefault();
   e.stopPropagation();
@@ -1293,8 +1380,9 @@ qs("#eo-btn-build-all-imports").onclick = async (e) => {
 });
 
     loadStores();
-    loadImports();
-    loadBatches();
+loadImports();
+loadBatches();
+loadBatchesHistory();
   }
 
   document.addEventListener("DOMContentLoaded", render);
