@@ -567,66 +567,119 @@ function toggleSidebar() {
   }
 
   async function loadImports() {
-    const data = await apiJson("/backoffice/imports");
-    const tbody = qs("#eo-imports-body");
-    if (!tbody) return;
-    tbody.innerHTML = "";
+  const data = await apiJson("/backoffice/imports");
 
-    const imports = data.imports || [];
-    qs("#kpi-imports").textContent = imports.length;
+  const tbody = qs("#eo-imports-body");
+  if (!tbody) return;
+  tbody.innerHTML = "";
 
-    const importsRemainingToBuild = imports.filter((x) => {
-  return (
-    String(x.status).toUpperCase() === "PREVIEWED" &&
-    Number(x.batch_count || 0) === 0
-  );
-}).length;
+  const imports = data.imports || [];
+  qs("#kpi-imports").textContent = imports.length;
 
-qs("#kpi-batches").textContent = importsRemainingToBuild;
+  const importsToBuild = imports.filter((x) => {
+    return (
+      String(x.status || "").toUpperCase() === "PREVIEWED" &&
+      Number(x.batch_count || 0) === 0
+    );
+  });
 
-    imports.forEach((i) => {
-      const tr = ce("tr");
-      tr.innerHTML = `
-        <td>${i.id}</td>
-        <td>${i.original_filename || ""}</td>
-        <td>${statusBadge(i.status)}</td>
-        <td>${i.total_rows || 0}</td>
-        <td>${i.valid_rows || 0}</td>
-        <td>${i.error_rows || 0}</td>
-        <td class="eo-actions">
-  <button class="eo-btn secondary" data-action="lines" data-id="${i.id}">Voir lignes</button>
-  ${
-    Number(i.batch_count || 0) > 0
-      ? `<button class="eo-btn secondary" disabled>Déjà préparé</button>`
-      : `<button class="eo-btn yellow" data-action="build" data-id="${i.id}">Préparer</button>`
+  qs("#kpi-batches").textContent = importsToBuild.length;
+
+  if (!importsToBuild.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7">Aucun import à préparer.</td>
+      </tr>
+    `;
+    return;
   }
-</td>
-      `;
-      tbody.appendChild(tr);
-    });
 
-    tbody.querySelectorAll("button[data-action='lines']").forEach((btn) => {
-  btn.onclick = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    await loadImportLines(btn.dataset.id);
-    showView("detail-panel");
-  };
-});
+  importsToBuild.forEach((i) => {
+    const tr = ce("tr");
+    tr.innerHTML = `
+      <td>${i.id}</td>
+      <td>${i.original_filename || ""}</td>
+      <td>${statusBadge(i.status)}</td>
+      <td>${i.total_rows || 0}</td>
+      <td>${i.valid_rows || 0}</td>
+      <td>${i.error_rows || 0}</td>
+      <td class="eo-actions">
+        <button class="eo-btn secondary" data-action="lines" data-id="${i.id}">Voir lignes</button>
+        <button class="eo-btn yellow" data-action="build" data-id="${i.id}">Préparer</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
 
-tbody.querySelectorAll("button[data-action='build']").forEach((btn) => {
-  btn.onclick = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setBusy(btn, true, "Préparation...");
-    try {
-      await buildImport(btn.dataset.id);
-    } finally {
-      setBusy(btn, false);
-    }
-  };
-});
+  tbody.querySelectorAll("button[data-action='lines']").forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      await loadImportLines(btn.dataset.id);
+      showView("detail-panel");
+    };
+  });
+
+  tbody.querySelectorAll("button[data-action='build']").forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setBusy(btn, true, "Préparation...");
+      try {
+        await buildImport(btn.dataset.id);
+      } finally {
+        setBusy(btn, false);
+      }
+    };
+  });
+}
+
+async function loadPreparedImportsHistory() {
+  const data = await apiJson("/backoffice/imports");
+
+  const tbody = qs("#eo-imports-history-body");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  const imports = data.imports || [];
+
+  const preparedImports = imports.filter((x) => Number(x.batch_count || 0) > 0);
+
+  if (!preparedImports.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8">Aucun import déjà préparé.</td>
+      </tr>
+    `;
+    return;
   }
+
+  preparedImports.forEach((i) => {
+    const tr = ce("tr");
+    tr.innerHTML = `
+      <td>${i.id}</td>
+      <td>${i.original_filename || ""}</td>
+      <td>${i.sheet_name || ""}</td>
+      <td>${statusBadge(i.status)}</td>
+      <td>${i.total_rows || 0}</td>
+      <td>${i.valid_rows || 0}</td>
+      <td>${i.error_rows || 0}</td>
+      <td class="eo-actions">
+        <button class="eo-btn secondary" data-action="history-lines" data-id="${i.id}">Voir lignes</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll("button[data-action='history-lines']").forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      await loadImportLines(btn.dataset.id);
+      showView("detail-panel");
+    };
+  });
+}
 
   
   async function loadImportLines(importId) {
@@ -668,8 +721,9 @@ tbody.querySelectorAll("button[data-action='build']").forEach((btn) => {
   const res = await apiJson(`/orders/build-from-import/${importId}`, { method: "POST" });
   log(`Préparation import ${importId}: ${JSON.stringify(res)}`, res.success ? "success" : "error");
   await loadImports();
-await loadBatches();
-await loadBatchesHistory();
+  await loadPreparedImportsHistory();
+  await loadBatches();
+  await loadBatchesHistory();
 }
 
   async function loadBatches() {
@@ -865,8 +919,9 @@ await loadBatchesHistory();
   );
 
   await loadImports();
-await loadBatches();
-await loadBatchesHistory();
+  await loadPreparedImportsHistory();
+  await loadBatches();
+  await loadBatchesHistory();
 
   const box = qs("#eo-detail-box");
   if (box) {
@@ -898,6 +953,7 @@ await loadStores();
   log(`Import commandes: ${JSON.stringify(res)}`, res.success ? "success" : "error");
 
   await loadImports();
+  await loadPreparedImportsHistory();
   showView("imports-history");
 }
 
@@ -929,6 +985,7 @@ async function sendAllReady(button) {
     log(`Envoi global: ${JSON.stringify(res)}`, res.success ? "success" : "error");
     await loadImports();
 await loadBatches();
+await loadPreparedImportsHistory();
 await loadBatchesHistory();
 showView("batches-panel");
   } finally {
@@ -958,9 +1015,10 @@ async function buildAllImports(button) {
     }
 
     await loadImports();
-await loadBatches();
-await loadBatchesHistory();
-showView("batches-panel");
+    await loadPreparedImportsHistory();
+   await loadBatches();
+   await loadBatchesHistory();
+   showView("batches-panel");
   } finally {
     setBusy(button, false);
   }
@@ -1082,6 +1140,11 @@ function renderStoreImportResults(res, mode) {
             <span class="eo-nav-label">Historique des imports</span>
           </button>
 
+          <button type="button" class="eo-nav-btn" data-nav="imports-prepared-history">
+  <span class="eo-nav-icon">🗃️</span>
+  <span class="eo-nav-label">Imports déjà préparés</span>
+</button>
+
           <button type="button" class="eo-nav-btn" data-nav="batches-panel">
             <span class="eo-nav-icon">📦</span>
             <span class="eo-nav-label">Commandes prêtes à envoyer</span>
@@ -1164,8 +1227,8 @@ function renderStoreImportResults(res, mode) {
 
         <section class="eo-view" data-view="imports-history">
           <div class="eo-card">
-            <h3>Historique des imports</h3>
-            <p class="eo-card-sub">Contrôlez les imports chargés, consultez les lignes détectées et préparez les commandes.</p>
+            <h3>Imports à préparer</h3>
+<p class="eo-card-sub">Imports encore non préparés en batchs. Consultez les lignes détectées puis lancez la préparation.</p>
 <div class="eo-actions" style="margin-bottom:14px">
   <button type="button" class="eo-btn yellow" id="eo-btn-build-all-imports">Tout préparer</button>
 </div>
@@ -1187,6 +1250,35 @@ function renderStoreImportResults(res, mode) {
             </div>
           </div>
         </section>
+
+        <section class="eo-view" data-view="imports-prepared-history">
+  <div class="eo-card">
+    <h3>Historique des imports préparés</h3>
+    <p class="eo-card-sub">Imports déjà transformés en batchs de commandes.</p>
+
+    <div class="eo-actions" style="margin-bottom:14px">
+      <button type="button" class="eo-btn secondary" id="eo-btn-refresh-imports-history">Rafraîchir</button>
+    </div>
+
+    <div class="eo-table-wrap">
+      <table class="eo-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Fichier</th>
+            <th>Feuille</th>
+            <th>Statut</th>
+            <th>Total</th>
+            <th>Valides</th>
+            <th>Erreurs</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="eo-imports-history-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
 
         <section class="eo-view" data-view="batches-panel">
           <div class="eo-card">
@@ -1362,6 +1454,7 @@ qs("#eo-btn-build-all-imports").onclick = async (e) => {
 };
 
     qs("#eo-btn-refresh-imports").onclick = loadImports;
+    qs("#eo-btn-refresh-imports-history").onclick = loadPreparedImportsHistory;
     qs("#eo-btn-refresh-batches").onclick = loadBatches;
     qs("#eo-btn-cleanup-orders").onclick = cleanupOrders;
     qs("#eo-btn-refresh-batches-history").onclick = loadBatchesHistory;
@@ -1382,6 +1475,7 @@ qs("#eo-btn-build-all-imports").onclick = async (e) => {
     loadStores();
 loadImports();
 loadBatches();
+loadPreparedImportsHistory();
 loadBatchesHistory();
   }
 
