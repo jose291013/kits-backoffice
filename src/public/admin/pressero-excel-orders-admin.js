@@ -1137,7 +1137,7 @@ function renderStoreImportResults(res, mode) {
 
           <button type="button" class="eo-nav-btn" data-nav="imports-history">
             <span class="eo-nav-icon">🧾</span>
-            <span class="eo-nav-label">Historique des imports</span>
+            <span class="eo-nav-label">Imports à préparer</span>
           </button>
 
           <button type="button" class="eo-nav-btn" data-nav="imports-prepared-history">
