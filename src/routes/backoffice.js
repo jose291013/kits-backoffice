@@ -30,6 +30,68 @@ function dbAll(sql, params = []) {
   });
 }
 
+function getBatchesQuery(whereClause = "1=1") {
+  return `
+    SELECT
+      ob.id,
+      ob.import_id,
+      ob.store_code,
+      ob.order_group,
+      ob.presso_user_id,
+      ob.site_id,
+      ob.bill_to_address_id,
+      ob.ship_to_address_id,
+      ob.po_number,
+      ob.requested_ship_date,
+      ob.ship_method_name,
+      ob.status,
+      ob.total_lines,
+      ob.created_at,
+      ob.executed_at,
+      ob.message,
+      ob.need_to_apply_approvals,
+      ob.presso_order_id,
+      ob.presso_order_number,
+      ob.presso_order_date,
+      ROUND(COALESCE(SUM(obi.price), 0), 2) AS total_ht,
+      ROUND(COALESCE(SUM(obi.shipping), 0), 2) AS total_shipping,
+      ROUND(COALESCE(SUM(obi.tax), 0), 2) AS total_tax,
+      ROUND(
+        COALESCE(SUM(obi.price), 0) +
+        COALESCE(SUM(obi.shipping), 0) +
+        COALESCE(SUM(obi.tax), 0),
+        2
+      ) AS total_ttc
+    FROM order_batches ob
+    LEFT JOIN order_batch_items obi ON obi.batch_id = ob.id
+    WHERE ${whereClause}
+    GROUP BY
+      ob.id,
+      ob.import_id,
+      ob.store_code,
+      ob.order_group,
+      ob.presso_user_id,
+      ob.site_id,
+      ob.bill_to_address_id,
+      ob.ship_to_address_id,
+      ob.po_number,
+      ob.requested_ship_date,
+      ob.ship_method_name,
+      ob.status,
+      ob.total_lines,
+      ob.created_at,
+      ob.executed_at,
+      ob.message,
+      ob.need_to_apply_approvals,
+      ob.presso_order_id,
+      ob.presso_order_number,
+      ob.presso_order_date
+    ORDER BY
+      COALESCE(ob.executed_at, ob.created_at) DESC,
+      ob.id DESC
+  `;
+}
+
 // =========================
 // IMPORTS
 // =========================
@@ -121,57 +183,33 @@ router.get("/imports/:importId/lines", async (req, res) => {
 
 router.get("/batches", async (req, res) => {
   try {
-    const rows = await dbAll(`
-  SELECT
-    ob.id,
-    ob.import_id,
-    ob.store_code,
-    ob.order_group,
-    ob.presso_user_id,
-    ob.site_id,
-    ob.bill_to_address_id,
-    ob.ship_to_address_id,
-    ob.po_number,
-    ob.requested_ship_date,
-    ob.ship_method_name,
-    ob.status,
-    ob.total_lines,
-    ob.created_at,
-    ob.executed_at,
-    ob.message,
-    ob.need_to_apply_approvals,
-    ob.presso_order_id,
-    ob.presso_order_number,
-    ob.presso_order_date,
-    ROUND(COALESCE(SUM(obi.price), 0), 2) AS total_ht,
-    ROUND(COALESCE(SUM(obi.shipping), 0), 2) AS total_shipping,
-    ROUND(COALESCE(SUM(obi.tax), 0), 2) AS total_tax,
-    ROUND(COALESCE(SUM(obi.price), 0) + COALESCE(SUM(obi.shipping), 0) + COALESCE(SUM(obi.tax), 0), 2) AS total_ttc
-  FROM order_batches ob
-  LEFT JOIN order_batch_items obi ON obi.batch_id = ob.id
-  GROUP BY
-    ob.id,
-    ob.import_id,
-    ob.store_code,
-    ob.order_group,
-    ob.presso_user_id,
-    ob.site_id,
-    ob.bill_to_address_id,
-    ob.ship_to_address_id,
-    ob.po_number,
-    ob.requested_ship_date,
-    ob.ship_method_name,
-    ob.status,
-    ob.total_lines,
-    ob.created_at,
-    ob.executed_at,
-    ob.message,
-    ob.need_to_apply_approvals,
-    ob.presso_order_id,
-    ob.presso_order_number,
-    ob.presso_order_date
-  ORDER BY ob.id DESC
-`);
+    const rows = await dbAll(getBatchesQuery());
+
+    res.json({ success: true, batches: rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
+
+router.get("/batches/active", async (req, res) => {
+  try {
+    const rows = await dbAll(
+      getBatchesQuery(`ob.status IN ('READY', 'FAILED', 'PROCESSING')`)
+    );
+
+    res.json({ success: true, batches: rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.get("/batches/history", async (req, res) => {
+  try {
+    const rows = await dbAll(
+      getBatchesQuery(`ob.status = 'SENT'`)
+    );
 
     res.json({ success: true, batches: rows });
   } catch (error) {
