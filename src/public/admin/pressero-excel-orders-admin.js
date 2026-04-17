@@ -576,16 +576,23 @@ function toggleSidebar() {
   const imports = data.imports || [];
   qs("#kpi-imports").textContent = imports.length;
 
-  const importsToBuild = imports.filter((x) => {
+  const importsToBuildCount = imports.filter((x) => {
     return (
       String(x.status || "").toUpperCase() === "PREVIEWED" &&
       Number(x.batch_count || 0) === 0
     );
+  }).length;
+
+  qs("#kpi-batches").textContent = importsToBuildCount;
+
+  const visibleImports = imports.filter((x) => {
+    const status = String(x.status || "").toUpperCase();
+    const batchCount = Number(x.batch_count || 0);
+
+    return batchCount === 0 && (status === "PREVIEWED" || status === "FAILED");
   });
 
-  qs("#kpi-batches").textContent = importsToBuild.length;
-
-  if (!importsToBuild.length) {
+  if (!visibleImports.length) {
     tbody.innerHTML = `
       <tr>
         <td colspan="7">Aucun import à préparer.</td>
@@ -594,7 +601,10 @@ function toggleSidebar() {
     return;
   }
 
-  importsToBuild.forEach((i) => {
+  visibleImports.forEach((i) => {
+    const status = String(i.status || "").toUpperCase();
+    const canBuild = status === "PREVIEWED";
+
     const tr = ce("tr");
     tr.innerHTML = `
       <td>${i.id}</td>
@@ -605,7 +615,11 @@ function toggleSidebar() {
       <td>${i.error_rows || 0}</td>
       <td class="eo-actions">
         <button class="eo-btn secondary" data-action="lines" data-id="${i.id}">Voir lignes</button>
-        <button class="eo-btn yellow" data-action="build" data-id="${i.id}">Préparer</button>
+        ${
+          canBuild
+            ? `<button class="eo-btn yellow" data-action="build" data-id="${i.id}">Préparer</button>`
+            : `<button class="eo-btn secondary" disabled>Import en erreur</button>`
+        }
       </td>
     `;
     tbody.appendChild(tr);
@@ -949,12 +963,52 @@ await loadStores();
   const fd = new FormData();
   fd.append("file", file);
 
-  const res = await apiForm("/imports/preview", fd);
-  log(`Import commandes: ${JSON.stringify(res)}`, res.success ? "success" : "error");
+  const box = qs("#eo-orders-import-result");
+  if (box) {
+    box.innerHTML = "Import en cours...";
+  }
 
-  await loadImports();
-  await loadPreparedImportsHistory();
-  showView("imports-history");
+  try {
+    const res = await apiForm("/imports/preview", fd);
+
+    log(`Import commandes: ${JSON.stringify(res)}`, res.success ? "success" : "error");
+
+    if (!res.success) {
+      throw new Error(res.message || "Erreur lors de l'import des commandes");
+    }
+
+    if (box) {
+      const hasErrors = Number(res.errors || 0) > 0;
+
+      box.innerHTML = `
+        <strong>${hasErrors ? "Import analysé avec erreurs" : "Import analysé avec succès"}</strong><br>
+        Import ID : ${res.importId || "-"}<br>
+        Feuille : ${res.sheetName || "-"}<br>
+        Total lignes : ${res.total || 0}<br>
+        Lignes valides : ${res.valid || 0}<br>
+        Lignes en erreur : ${res.errors || 0}<br>
+        ${
+          hasErrors
+            ? `Cet import reste visible dans <strong>Imports à préparer</strong> pour consulter les lignes en erreur.`
+            : `Cet import est prêt à être préparé en batch.`
+        }
+      `;
+    }
+
+    await loadImports();
+    await loadPreparedImportsHistory();
+    showView("imports-history");
+  } catch (err) {
+    if (box) {
+      box.innerHTML = `
+        <strong style="color:#991b1b">Erreur d'import</strong><br>
+        ${err.message || "Erreur inconnue"}
+      `;
+    }
+
+    log(`Import commandes ERROR: ${err.message || err}`, "error");
+    showView("orders-import");
+  }
 }
 
   function setBusy(button, busy, busyText = "Traitement...") {
@@ -1182,6 +1236,13 @@ function renderStoreImportResults(res, mode) {
 
 <div class="eo-actions" style="margin-top:12px">
   <button type="button" class="eo-btn yellow" id="eo-btn-template-orders">Télécharger le modèle commandes</button>
+</div>
+
+<div
+  id="eo-orders-import-result"
+  style="margin-top:14px;padding:14px 16px;border:1px solid #e5e7eb;border-radius:16px;background:#fff;color:#374151;"
+>
+  Aucun import lancé.
 </div>
           </div>
         </section>
