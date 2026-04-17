@@ -131,6 +131,7 @@ async function priceBatchItem(batch, item) {
   };
 }
 
+
 function buildBillToFields(address) {
   return {
     billToAddressId: address?.address_id || null,
@@ -253,6 +254,37 @@ function extractSelectedShipMethodName(selectedShipping, allEstimates, shipAddre
   const serviceName = String(selectedShipping?.Estimate?.Service?.Name || "").trim();
   if (serviceName) {
     return serviceName;
+  }
+
+  return null;
+}
+
+function normalizePresseroDate(value) {
+  if (!value) return null;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  const s = String(value).trim();
+
+  if (!s) return null;
+
+  // déjà au bon format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return s;
+  }
+
+  // cas ISO complet : 2026-04-22T00:00:00.000Z
+  const isoPrefix = s.match(/^(\d{4}-\d{2}-\d{2})T/);
+  if (isoPrefix) {
+    return isoPrefix[1];
+  }
+
+  // fallback parsing JS
+  const d = new Date(s);
+  if (!Number.isNaN(d.getTime())) {
+    return d.toISOString().slice(0, 10);
   }
 
   return null;
@@ -493,7 +525,8 @@ async function submitBatchToPressero(batchId) {
 
   try {
     const hydrated = await hydrateBatchFinancials(batchId);
-const { batch, billAddress, shipAddress, selectedShipMethodName, items: enrichedItems } = hydrated;
+    const { batch, billAddress, shipAddress, selectedShipMethodName, items: enrichedItems } = hydrated;
+    const normalizedRequestedShipDate = normalizePresseroDate(batch.requested_ship_date);
 
     if (batch.presso_order_number || batch.presso_order_id || String(batch.status || "").toUpperCase() === "SENT") {
       throw new Error(`Le batch ${batchId} a déjà été envoyé à Pressero`);
@@ -504,8 +537,9 @@ const { batch, billAddress, shipAddress, selectedShipMethodName, items: enriched
   enrichedItems,
   shipAddress,
   selectedShipMethodName,
-  batch.requested_ship_date || null
+  normalizedRequestedShipDate
 );
+const normalizedRequestedShipDate = normalizePresseroDate(batch.requested_ship_date);
 
 console.log("SELECTED SHIP METHOD NAME =", selectedShipMethodName);
 console.log("ORDER ITEMS WITH SHIPPING =", JSON.stringify(
@@ -526,7 +560,7 @@ console.log("ORDER ITEMS WITH SHIPPING =", JSON.stringify(
       userId: batch.presso_user_id,
       notes: `Import Excel - batch ${batchId}`,
       isPaid: false,
-      requestedShipDate: batch.requested_ship_date || null,
+      requestedShipDate: normalizedRequestedShipDate,
       poNumber: batch.po_number || null,
       ...buildBillToFields(billAddress),
       paymentMethod: process.env.PRESSERO_PAYMENT_METHOD || null,
