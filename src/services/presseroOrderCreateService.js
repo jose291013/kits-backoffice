@@ -539,7 +539,6 @@ async function submitBatchToPressero(batchId) {
   selectedShipMethodName,
   normalizedRequestedShipDate
 );
-const normalizedRequestedShipDate = normalizePresseroDate(batch.requested_ship_date);
 
 console.log("SELECTED SHIP METHOD NAME =", selectedShipMethodName);
 console.log("ORDER ITEMS WITH SHIPPING =", JSON.stringify(
