@@ -290,6 +290,36 @@ function normalizePresseroDate(value) {
   return null;
 }
 
+function buildWorkDataNotes(row) {
+  const parts = [];
+
+  if (row?.item?.q1 !== null && row?.item?.q1 !== undefined && row.item.q1 !== "") {
+    parts.push(`Quantity=${row.item.q1}`);
+  }
+
+  if (row?.item?.q2 !== null && row?.item?.q2 !== undefined && row.item.q2 !== "") {
+    parts.push(`Reference=${row.item.q2}`);
+  }
+
+  if (row?.item?.q3 !== null && row?.item?.q3 !== undefined && row.item.q3 !== "") {
+    parts.push(`Height=${row.item.q3}`);
+  }
+
+  if (row?.item?.q4 !== null && row?.item?.q4 !== undefined && row.item.q4 !== "") {
+    parts.push(`Width=${row.item.q4}`);
+  }
+
+  return parts.join(" | ");
+}
+
+function mergeItemNotes(existingNotes, workDataNotes) {
+  const base = String(existingNotes || "").trim();
+  const extra = String(workDataNotes || "").trim();
+
+  if (base && extra) return `${base} | ${extra}`;
+  return base || extra || null;
+}
+
 async function hydrateBatchFinancials(batchId) {
   const batch = await dbGet(
     `
@@ -506,7 +536,10 @@ function buildOrderItemsForCreate(
     discount: 0,
     shipping: row.shipping,
     weight: row.weight,
-    itemNotes: row.item.item_notes || null,
+    itemNotes: mergeItemNotes(
+  row.item.item_notes,
+  buildWorkDataNotes(row)
+),
     shipMethodName: selectedShipMethodName || null,
     ...buildShipToFields(shipAddress),
     edocSessionId: null
