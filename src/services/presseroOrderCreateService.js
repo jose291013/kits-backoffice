@@ -457,11 +457,17 @@ if (!batch.ship_method_name && selectedShipMethodName) {
 };
 }
 
-function buildOrderItemsForCreate(batchId, enrichedItems, shipAddress, selectedShipMethodName) {
+function buildOrderItemsForCreate(
+  batchId,
+  enrichedItems,
+  shipAddress,
+  selectedShipMethodName,
+  batchRequestedShipDate
+) {
   return enrichedItems.map((row) => ({
     productId: row.item.product_id,
     jobNumber: row.item.job_number || `BATCH-${batchId}-ITEM-${row.item.id}`,
-    projectedShipDate: row.item.requested_ship_date || null,
+    projectedShipDate: batchRequestedShipDate || null,
     quantity: Number(row.item.q1 || 0),
     price: row.price,
     tax: row.tax,
@@ -497,7 +503,8 @@ const { batch, billAddress, shipAddress, selectedShipMethodName, items: enriched
   batchId,
   enrichedItems,
   shipAddress,
-  selectedShipMethodName
+  selectedShipMethodName,
+  batch.requested_ship_date || null
 );
 
 console.log("SELECTED SHIP METHOD NAME =", selectedShipMethodName);
