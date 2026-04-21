@@ -150,6 +150,34 @@ async function priceBatchItem(batch, item) {
     parsePriceValue(data.TotalPrice) ||
     0;
 
+    if (totalPrice === 0) {
+  console.error(
+    "ZERO_PRICE_DIAG " +
+      JSON.stringify({
+        batchId: batch.id,
+        storeCode: batch.store_code,
+        itemId: item.id,
+        sourceRef: item.source_ref,
+        productId: item.product_id,
+        productName: item.product_name,
+        q1: item.q1,
+        q2: item.q2,
+        q3: item.q3,
+        q4: item.q4,
+        response: {
+          Cost: data.Cost,
+          DisplayCost: data.DisplayCost,
+          Price: data.Price,
+          TotalPrice: data.TotalPrice,
+          Weight: data.Weight,
+          DisplayWeight: data.DisplayWeight,
+          IsValid: data.IsValid,
+          Messages: data.Messages
+        }
+      })
+  );
+}
+
   console.log("BATCH PRICE RESPONSE =", JSON.stringify(data, null, 2));
   console.log("BATCH PRICE PARSED =", totalPrice);
 
