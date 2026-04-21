@@ -103,6 +103,16 @@ async function getAddressById(storeId, addressId) {
   );
 }
 
+function parsePriceValue(value) {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === "number") return value;
+
+  const normalized = String(value).replace(",", ".").replace(/[^\d.-]/g, "");
+  const parsed = Number(normalized);
+
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 async function priceBatchItem(batch, item) {
   const headers = await getHeaders();
 
@@ -124,8 +134,15 @@ async function priceBatchItem(batch, item) {
 
   const data = response.data || {};
 
+  const totalPrice =
+    parsePriceValue(data.Cost) ||
+    parsePriceValue(data.DisplayCost) ||
+    parsePriceValue(data.Price) ||
+    parsePriceValue(data.TotalPrice) ||
+    0;
+
   return {
-    price: Number(data.Cost || 0),
+    price: totalPrice,
     weight: Number(data.Weight || 0),
     pricingResponse: data
   };
