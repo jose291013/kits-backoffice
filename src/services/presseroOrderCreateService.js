@@ -126,12 +126,21 @@ async function priceBatchItem(batch, item) {
     Options: []
   };
 
-  const response = await axios.post(
-    `${ADMIN_BASE_URL}/api/cart/${PRODUCT_SITE_DOMAIN}/product/${item.product_id}/price?userId=${batch.presso_user_id}`,
-    payload,
-    { headers }
-  );
+  const url = `${ADMIN_BASE_URL}/api/cart/${PRODUCT_SITE_DOMAIN}/product/${item.product_id}/price?userId=${batch.presso_user_id}`;
 
+  console.log("BATCH PRICE URL =", url);
+  console.log("BATCH PRICE ITEM =", JSON.stringify({
+    batchId: batch.id,
+    itemId: item.id,
+    productId: item.product_id,
+    q1: item.q1,
+    q2: item.q2,
+    q3: item.q3,
+    q4: item.q4
+  }, null, 2));
+  console.log("BATCH PRICE PAYLOAD =", JSON.stringify(payload, null, 2));
+
+  const response = await axios.post(url, payload, { headers });
   const data = response.data || {};
 
   const totalPrice =
@@ -140,6 +149,9 @@ async function priceBatchItem(batch, item) {
     parsePriceValue(data.Price) ||
     parsePriceValue(data.TotalPrice) ||
     0;
+
+  console.log("BATCH PRICE RESPONSE =", JSON.stringify(data, null, 2));
+  console.log("BATCH PRICE PARSED =", totalPrice);
 
   return {
     price: totalPrice,
