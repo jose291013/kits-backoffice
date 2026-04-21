@@ -287,36 +287,7 @@ db.serialize(() => {
     )
   `);
 
-  db.run(`ALTER TABLE order_batches ADD COLUMN need_to_apply_approvals INTEGER DEFAULT 1`, (err) => {
-  if (err && !String(err.message).includes("duplicate column name")) {
-    console.error("Erreur ajout colonne need_to_apply_approvals:", err.message);
-  }
-});
-
-db.run(`ALTER TABLE order_batches ADD COLUMN presso_order_id TEXT`, (err) => {
-  if (err && !String(err.message).includes("duplicate column name")) {
-    console.error("Erreur ajout colonne presso_order_id:", err.message);
-  }
-});
-
-db.run(`ALTER TABLE order_batches ADD COLUMN presso_order_number INTEGER`, (err) => {
-  if (err && !String(err.message).includes("duplicate column name")) {
-    console.error("Erreur ajout colonne presso_order_number:", err.message);
-  }
-});
-
-db.run(`ALTER TABLE order_batches ADD COLUMN presso_order_date TEXT`, (err) => {
-  if (err && !String(err.message).includes("duplicate column name")) {
-    console.error("Erreur ajout colonne presso_order_date:", err.message);
-  }
-});
-
-db.run(`ALTER TABLE excel_import_lines ADD COLUMN need_to_apply_approvals TEXT`, (err) => {
-  if (err && !String(err.message).includes("duplicate column name")) {
-    console.error("Erreur ajout colonne need_to_apply_approvals sur excel_import_lines:", err.message);
-  }
-});
-
+  
   // =========================================================
   // F. LOGS DE SYNCHRO
   // =========================================================
@@ -498,26 +469,37 @@ db.run(`ALTER TABLE excel_import_lines ADD COLUMN need_to_apply_approvals TEXT`,
       await addColumnIfMissing("excel_import_lines", cols, "lang", `lang TEXT`);
       await addColumnIfMissing("excel_import_lines", cols, "status", `status TEXT DEFAULT 'PENDING'`);
       await addColumnIfMissing("excel_import_lines", cols, "message", `message TEXT`);
+      await addColumnIfMissing("excel_import_lines", cols, "need_to_apply_approvals", `need_to_apply_approvals TEXT`);
           }
 
     // order_batches
-    {
-      const cols = await tableInfo("order_batches");
-      await addColumnIfMissing("order_batches", cols, "presso_user_id", `presso_user_id TEXT`);
-      await addColumnIfMissing("order_batches", cols, "site_id", `site_id TEXT`);
-      await addColumnIfMissing("order_batches", cols, "bill_to_address_id", `bill_to_address_id TEXT`);
-      await addColumnIfMissing("order_batches", cols, "ship_to_address_id", `ship_to_address_id TEXT`);
-      await addColumnIfMissing("order_batches", cols, "po_number", `po_number TEXT`);
-      await addColumnIfMissing("order_batches", cols, "requested_ship_date", `requested_ship_date TEXT`);
-      await addColumnIfMissing("order_batches", cols, "ship_method_name", `ship_method_name TEXT`);
-      await addColumnIfMissing("order_batches", cols, "status", `status TEXT DEFAULT 'READY'`);
-      await addColumnIfMissing("order_batches", cols, "total_lines", `total_lines INTEGER DEFAULT 0`);
-      await addColumnIfMissing("order_batches", cols, "payload_json", `payload_json TEXT`);
-      await addColumnIfMissing("order_batches", cols, "response_json", `response_json TEXT`);
-      await addColumnIfMissing("order_batches", cols, "message", `message TEXT`);
-      await addColumnIfMissing("order_batches", cols, "created_at", `created_at TEXT DEFAULT CURRENT_TIMESTAMP`);
-      await addColumnIfMissing("order_batches", cols, "executed_at", `executed_at TEXT`);
-    }
+{
+  const cols = await tableInfo("order_batches");
+  await addColumnIfMissing("order_batches", cols, "presso_user_id", `presso_user_id TEXT`);
+  await addColumnIfMissing("order_batches", cols, "site_id", `site_id TEXT`);
+  await addColumnIfMissing("order_batches", cols, "bill_to_address_id", `bill_to_address_id TEXT`);
+  await addColumnIfMissing("order_batches", cols, "ship_to_address_id", `ship_to_address_id TEXT`);
+  await addColumnIfMissing("order_batches", cols, "po_number", `po_number TEXT`);
+  await addColumnIfMissing("order_batches", cols, "requested_ship_date", `requested_ship_date TEXT`);
+  await addColumnIfMissing("order_batches", cols, "ship_method_name", `ship_method_name TEXT`);
+  await addColumnIfMissing("order_batches", cols, "status", `status TEXT DEFAULT 'READY'`);
+  await addColumnIfMissing("order_batches", cols, "total_lines", `total_lines INTEGER DEFAULT 0`);
+  await addColumnIfMissing("order_batches", cols, "payload_json", `payload_json TEXT`);
+  await addColumnIfMissing("order_batches", cols, "response_json", `response_json TEXT`);
+  await addColumnIfMissing("order_batches", cols, "message", `message TEXT`);
+  await addColumnIfMissing("order_batches", cols, "created_at", `created_at TEXT DEFAULT CURRENT_TIMESTAMP`);
+  await addColumnIfMissing("order_batches", cols, "executed_at", `executed_at TEXT`);
+
+  await addColumnIfMissing("order_batches", cols, "need_to_apply_approvals", `need_to_apply_approvals INTEGER DEFAULT 1`);
+  await addColumnIfMissing("order_batches", cols, "presso_order_id", `presso_order_id TEXT`);
+  await addColumnIfMissing("order_batches", cols, "presso_order_number", `presso_order_number INTEGER`);
+  await addColumnIfMissing("order_batches", cols, "presso_order_date", `presso_order_date TEXT`);
+
+  await addColumnIfMissing("order_batches", cols, "total_ht", `total_ht REAL DEFAULT 0`);
+  await addColumnIfMissing("order_batches", cols, "total_shipping", `total_shipping REAL DEFAULT 0`);
+  await addColumnIfMissing("order_batches", cols, "total_tax", `total_tax REAL DEFAULT 0`);
+  await addColumnIfMissing("order_batches", cols, "total_ttc", `total_ttc REAL DEFAULT 0`);
+}
 
     // order_batch_items
     {
