@@ -513,20 +513,19 @@ if (!batch.ship_method_name && selectedShipMethodName) {
 
   for (const row of enrichedItems) {
     await dbRun(
-      `
-      UPDATE order_batch_items
-      SET price = ?, weight = ?, tax = ?, shipping = ?, message = ?
-      WHERE id = ?
-      `,
-      [
-        row.price,
-        row.weight,
-        row.tax,
-        row.shipping,
-        null,
-        row.item.id
-      ]
-    );
+  `
+  UPDATE order_batch_items
+  SET price = ?, weight = ?, tax = ?, shipping = ?
+  WHERE id = ?
+  `,
+  [
+    row.price,
+    row.weight,
+    row.tax,
+    row.shipping,
+    row.item.id
+  ]
+);
   }
 
   const totals = enrichedItems.reduce(
