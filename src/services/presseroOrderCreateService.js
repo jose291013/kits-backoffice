@@ -68,6 +68,36 @@ async function getHeaders() {
   };
 }
 
+function getRawHeaders(token) {
+  return {
+    Authorization: token,
+    "Content-Type": "application/json",
+    Accept: "application/json"
+  };
+}
+
+async function postWithAuthRetry(url, body) {
+  const token = await getAccessToken();
+
+  try {
+    return await axios.post(url, body, {
+      headers: {
+        Authorization: `Token ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json"
+      }
+    });
+  } catch (err) {
+    if (err?.response?.status !== 401) {
+      throw err;
+    }
+
+    return axios.post(url, body, {
+      headers: getRawHeaders(token)
+    });
+  }
+}
+
 function dbGet(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.get(sql, params, (err, row) => {
@@ -664,13 +694,10 @@ console.log("ORDER ITEMS WITH SHIPPING =", JSON.stringify(
       items: orderItems
     };
 
-    const headers = await getHeaders();
-
-    const response = await axios.post(
-      `${ADMIN_BASE_URL}/api/v2/Orders/Create`,
-      payload,
-      { headers }
-    );
+    const response = await postWithAuthRetry(
+  `${ADMIN_BASE_URL}/api/v2/Orders/Create`,
+  payload
+);
 
     const responseData = response.data || {};
     const pressoOrderId = responseData.OrderId || null;
