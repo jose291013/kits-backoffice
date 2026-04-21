@@ -167,12 +167,12 @@ async function upsertStore({
 
   let billingAddress = null;
 
-  if (preferredAddress) {
-    billingAddress =
-      addresses.find((a) => a.AddressId !== preferredAddress.AddressId) || null;
-  } else {
-    billingAddress = addresses[0] || null;
-  }
+if (preferredAddress) {
+  billingAddress =
+    addresses.find((a) => a.AddressId !== preferredAddress.AddressId) || preferredAddress;
+} else {
+  billingAddress = addresses[0] || null;
+}
 
   const existingStore = await dbGet(
     `SELECT * FROM stores WHERE store_code = ?`,

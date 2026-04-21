@@ -253,7 +253,7 @@ async function buildOrderBatches(importId) {
         first.order_group || "A",
         store.presso_user_id,
         store.site_id,
-        store.billing_address_id,
+        store.billing_address_id || store.preferred_address_id,
         store.preferred_address_id,
         first.po_number || null,
         first.requested_ship_date || null,
