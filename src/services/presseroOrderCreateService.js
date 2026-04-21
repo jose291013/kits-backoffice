@@ -437,28 +437,6 @@ async function hydrateBatchFinancials(batchId) {
 
     const pricing = await priceBatchItem(batch, item);
 
-    await dbRun(
-  `
-  UPDATE order_batch_items
-  SET message = ?
-  WHERE id = ?
-  `,
-  [
-    JSON.stringify({
-      batchId: batch.id,
-      productId: item.product_id,
-      productName: item.product_name,
-      q1: item.q1,
-      q2: item.q2,
-      q3: item.q3,
-      q4: item.q4,
-      parsedPrice: pricing.price,
-      response: pricing.pricingResponse || null
-    }).slice(0, 1500),
-    item.id
-  ]
-);
-
     const linePrice = Number(pricing.price || 0);
     const lineWeight = Number(pricing.weight || 0);
 
