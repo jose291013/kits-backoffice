@@ -128,17 +128,20 @@ async function priceBatchItem(batch, item) {
 
   const url = `${ADMIN_BASE_URL}/api/cart/${PRODUCT_SITE_DOMAIN}/product/${item.product_id}/price?userId=${batch.presso_user_id}`;
 
-  console.log("BATCH PRICE URL =", url);
-  console.log("BATCH PRICE ITEM =", JSON.stringify({
-    batchId: batch.id,
-    itemId: item.id,
-    productId: item.product_id,
-    q1: item.q1,
-    q2: item.q2,
-    q3: item.q3,
-    q4: item.q4
-  }, null, 2));
-  console.log("BATCH PRICE PAYLOAD =", JSON.stringify(payload, null, 2));
+  console.error(
+    "ENTER_PRICE_BATCH_ITEM=" +
+      JSON.stringify({
+        batchId: batch.id,
+        storeCode: batch.store_code,
+        itemId: item.id,
+        productId: item.product_id,
+        productName: item.product_name,
+        q1: item.q1,
+        q2: item.q2,
+        q3: item.q3,
+        q4: item.q4
+      })
+  );
 
   const response = await axios.post(url, payload, { headers });
   const data = response.data || {};
@@ -150,36 +153,29 @@ async function priceBatchItem(batch, item) {
     parsePriceValue(data.TotalPrice) ||
     0;
 
-    if (totalPrice === 0) {
   console.error(
-    "ZERO_PRICE_DIAG " +
+    "PRICE_TRACE=" +
       JSON.stringify({
         batchId: batch.id,
         storeCode: batch.store_code,
         itemId: item.id,
-        sourceRef: item.source_ref,
         productId: item.product_id,
         productName: item.product_name,
         q1: item.q1,
         q2: item.q2,
         q3: item.q3,
         q4: item.q4,
-        response: {
-          Cost: data.Cost,
-          DisplayCost: data.DisplayCost,
-          Price: data.Price,
-          TotalPrice: data.TotalPrice,
-          Weight: data.Weight,
-          DisplayWeight: data.DisplayWeight,
-          IsValid: data.IsValid,
-          Messages: data.Messages
-        }
+        parsedPrice: totalPrice,
+        responseCost: data.Cost ?? null,
+        responseDisplayCost: data.DisplayCost ?? null,
+        responsePrice: data.Price ?? null,
+        responseTotalPrice: data.TotalPrice ?? null,
+        responseWeight: data.Weight ?? null,
+        responseDisplayWeight: data.DisplayWeight ?? null,
+        responseIsValid: data.IsValid ?? null,
+        responseMessages: data.Messages ?? null
       })
   );
-}
-
-  console.log("BATCH PRICE RESPONSE =", JSON.stringify(data, null, 2));
-  console.log("BATCH PRICE PARSED =", totalPrice);
 
   return {
     price: totalPrice,
