@@ -3,6 +3,8 @@ const axios = require("axios");
 
 const ADMIN_BASE_URL = process.env.PRESSERO_BASE_URL;
 const PRODUCT_SITE_DOMAIN = process.env.PRESSERO_PRODUCT_SITE_DOMAIN;
+const CART_SITE_DOMAIN =
+  process.env.PRESSERO_CART_SITE_DOMAIN || process.env.PRESSERO_PRODUCT_SITE_DOMAIN;
 const SHIPPING_SITE_DOMAIN = process.env.PRESSERO_SHIPPING_DOMAIN || process.env.PRESSERO_PRODUCT_SITE_DOMAIN;
 const rawTaxRate = process.env.DEFAULT_TAX_RATE;
 const DEFAULT_TAX_RATE =
@@ -60,8 +62,9 @@ async function getAccessToken() {
 async function getHeaders() {
   const token = await getAccessToken();
   return {
-    Authorization: `token ${token}`,
-    "Content-Type": "application/json"
+    Authorization: `Token ${token}`,
+    "Content-Type": "application/json",
+    Accept: "application/json"
   };
 }
 
@@ -126,24 +129,12 @@ async function priceBatchItem(batch, item) {
     Options: []
   };
 
-  const url = `${ADMIN_BASE_URL}/api/cart/${PRODUCT_SITE_DOMAIN}/product/${item.product_id}/price?userId=${batch.presso_user_id}`;
-
-  console.error(
-    "ENTER_PRICE_BATCH_ITEM=" +
-      JSON.stringify({
-        batchId: batch.id,
-        storeCode: batch.store_code,
-        itemId: item.id,
-        productId: item.product_id,
-        productName: item.product_name,
-        q1: item.q1,
-        q2: item.q2,
-        q3: item.q3,
-        q4: item.q4
-      })
+  const response = await axios.post(
+    `${ADMIN_BASE_URL}/api/cart/${CART_SITE_DOMAIN}/product/${item.product_id}/price?userId=${encodeURIComponent(batch.presso_user_id)}`,
+    payload,
+    { headers }
   );
 
-  const response = await axios.post(url, payload, { headers });
   const data = response.data || {};
 
   const totalPrice =
@@ -152,30 +143,6 @@ async function priceBatchItem(batch, item) {
     parsePriceValue(data.Price) ||
     parsePriceValue(data.TotalPrice) ||
     0;
-
-  console.error(
-    "PRICE_TRACE=" +
-      JSON.stringify({
-        batchId: batch.id,
-        storeCode: batch.store_code,
-        itemId: item.id,
-        productId: item.product_id,
-        productName: item.product_name,
-        q1: item.q1,
-        q2: item.q2,
-        q3: item.q3,
-        q4: item.q4,
-        parsedPrice: totalPrice,
-        responseCost: data.Cost ?? null,
-        responseDisplayCost: data.DisplayCost ?? null,
-        responsePrice: data.Price ?? null,
-        responseTotalPrice: data.TotalPrice ?? null,
-        responseWeight: data.Weight ?? null,
-        responseDisplayWeight: data.DisplayWeight ?? null,
-        responseIsValid: data.IsValid ?? null,
-        responseMessages: data.Messages ?? null
-      })
-  );
 
   return {
     price: totalPrice,
@@ -577,6 +544,25 @@ if (!batch.ship_method_name && selectedShipMethodName) {
       totalTtc: 0
     }
   );
+
+  await dbRun(
+  `
+  UPDATE order_batches
+  SET
+    total_ht = ?,
+    total_shipping = ?,
+    total_tax = ?,
+    total_ttc = ?
+  WHERE id = ?
+  `,
+  [
+    Number(totals.totalHt.toFixed(2)),
+    Number(totals.totalShipping.toFixed(2)),
+    Number(totals.totalTax.toFixed(2)),
+    Number(totals.totalTtc.toFixed(2)),
+    batchId
+  ]
+);
 
   return {
   batch,
