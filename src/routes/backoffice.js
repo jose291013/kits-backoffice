@@ -682,6 +682,109 @@ router.post("/batches/archive-selected", async (req, res) => {
   }
 });
 
+router.post("/imports/:importId/delete", async (req, res) => {
+  const importId = Number(req.params.importId);
+
+  if (!importId) {
+    return res.status(400).json({
+      success: false,
+      message: "importId invalide"
+    });
+  }
+
+  try {
+    const importRow = await dbGet(
+      `
+      SELECT *
+      FROM excel_imports
+      WHERE id = ?
+      `,
+      [importId]
+    );
+
+    if (!importRow) {
+      return res.status(404).json({
+        success: false,
+        message: "Import introuvable"
+      });
+    }
+
+    const protectedCount = await dbGet(
+      `
+      SELECT COUNT(*) AS count
+      FROM order_batches
+      WHERE import_id = ?
+        AND (
+          status IN ('SENT', 'PROCESSING')
+          OR presso_order_number IS NOT NULL
+          OR presso_order_id IS NOT NULL
+        )
+      `,
+      [importId]
+    );
+
+    if (Number(protectedCount?.count || 0) > 0) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Impossible de supprimer cet import car il contient des commandes envoyées ou en cours de traitement."
+      });
+    }
+
+    await dbRun("BEGIN IMMEDIATE TRANSACTION");
+
+    await dbRun(
+      `
+      DELETE FROM order_batch_items
+      WHERE batch_id IN (
+        SELECT id
+        FROM order_batches
+        WHERE import_id = ?
+      )
+      `,
+      [importId]
+    );
+
+    await dbRun(
+      `
+      DELETE FROM order_batches
+      WHERE import_id = ?
+      `,
+      [importId]
+    );
+
+    await dbRun(
+      `
+      DELETE FROM excel_import_lines
+      WHERE import_id = ?
+      `,
+      [importId]
+    );
+
+    await dbRun(
+      `
+      DELETE FROM excel_imports
+      WHERE id = ?
+      `,
+      [importId]
+    );
+
+    await dbRun("COMMIT");
+
+    res.json({
+      success: true,
+      importId,
+      message: "Import supprimé avec ses lignes et ses batchs non envoyés."
+    });
+  } catch (error) {
+    await dbRun("ROLLBACK").catch(() => {});
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 router.post("/cleanup-orders", async (req, res) => {
   try {
     await dbRun(`DELETE FROM order_batch_items`);
