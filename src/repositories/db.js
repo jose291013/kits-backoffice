@@ -454,6 +454,8 @@ db.serialize(() => {
       await addColumnIfMissing("excel_imports", cols, "error_rows", `error_rows INTEGER DEFAULT 0`);
       await addColumnIfMissing("excel_imports", cols, "preview_json", `preview_json TEXT`);
       await addColumnIfMissing("excel_imports", cols, "message", `message TEXT`);
+      await addColumnIfMissing("excel_imports", cols, "deleted_at", `deleted_at TEXT`);
+      await addColumnIfMissing("excel_imports", cols, "deleted_reason", `deleted_reason TEXT`);
     }
 
     // excel_import_lines
@@ -470,7 +472,9 @@ db.serialize(() => {
       await addColumnIfMissing("excel_import_lines", cols, "status", `status TEXT DEFAULT 'PENDING'`);
       await addColumnIfMissing("excel_import_lines", cols, "message", `message TEXT`);
       await addColumnIfMissing("excel_import_lines", cols, "need_to_apply_approvals", `need_to_apply_approvals TEXT`);
-          }
+      await addColumnIfMissing("excel_import_lines", cols, "deleted_at", `deleted_at TEXT`);
+      await addColumnIfMissing("excel_import_lines", cols, "deleted_reason", `deleted_reason TEXT`);
+    }
 
     // order_batches
 {
@@ -499,6 +503,8 @@ db.serialize(() => {
   await addColumnIfMissing("order_batches", cols, "total_shipping", `total_shipping REAL DEFAULT 0`);
   await addColumnIfMissing("order_batches", cols, "total_tax", `total_tax REAL DEFAULT 0`);
   await addColumnIfMissing("order_batches", cols, "total_ttc", `total_ttc REAL DEFAULT 0`);
+  await addColumnIfMissing("order_batches", cols, "deleted_at", `deleted_at TEXT`);
+  await addColumnIfMissing("order_batches", cols, "deleted_reason", `deleted_reason TEXT`);
 }
 
     // order_batch_items
@@ -520,6 +526,8 @@ db.serialize(() => {
       await addColumnIfMissing("order_batch_items", cols, "status", `status TEXT DEFAULT 'READY'`);
       await addColumnIfMissing("order_batch_items", cols, "message", `message TEXT`);
       await addColumnIfMissing("order_batch_items", cols, "created_at", `created_at TEXT DEFAULT CURRENT_TIMESTAMP`);
+      await addColumnIfMissing("order_batch_items", cols, "deleted_at", `deleted_at TEXT`);
+      await addColumnIfMissing("order_batch_items", cols, "deleted_reason", `deleted_reason TEXT`);
     }
 
     console.log("Initialisation / migration SQLite terminée.");
