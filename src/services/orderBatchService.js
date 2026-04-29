@@ -258,7 +258,7 @@ async function buildOrderBatches(importId) {
         first.po_number || null,
         first.requested_ship_date || null,
         first.ship_method_name || null,
-        "READY",
+        "PROCESSING",
         0,
         null,
         needToApplyApprovals
@@ -499,7 +499,58 @@ async function buildOrderBatches(importId) {
       [batchItemCount, batchId]
     );
 
-    await hydrateBatchFinancials(batchId);
+    try {
+  await hydrateBatchFinancials(batchId);
+
+  await dbRun(
+    `
+    UPDATE order_batches
+    SET
+      status = ?,
+      message = ?
+    WHERE id = ?
+    `,
+    ["READY", null, batchId]
+  );
+} catch (error) {
+  const errorMessage = error.message || "Erreur lors de la préparation du batch";
+
+  await dbRun(
+    `
+    UPDATE order_batches
+    SET
+      status = ?,
+      message = ?
+    WHERE id = ?
+    `,
+    ["FAILED", errorMessage, batchId]
+  );
+
+  await dbRun(
+    `
+    UPDATE order_batch_items
+    SET
+      status = ?,
+      message = ?
+    WHERE batch_id = ?
+      AND status = 'READY'
+    `,
+    ["ERROR", errorMessage, batchId]
+  );
+
+  await dbRun(
+    `
+    UPDATE excel_imports
+    SET
+      status = ?,
+      message = ?
+    WHERE id = ?
+    `,
+    ["FAILED", errorMessage, importId]
+  );
+
+  throw error;
+}
   }
 
   return {
