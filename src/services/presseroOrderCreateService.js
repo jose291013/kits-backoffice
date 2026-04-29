@@ -370,6 +370,43 @@ function mergeItemNotes(existingNotes, workDataNotes) {
   return base || extra || null;
 }
 
+function hasAttributeValue(value) {
+  return value !== null && value !== undefined && String(value).trim() !== "";
+}
+
+function buildOrderItemAttributes(row) {
+  const item = row?.item || {};
+  const attributes = [];
+
+  if (hasAttributeValue(item.q2)) {
+    attributes.push({
+      attributeName: "standard_quotation",
+      attributeValue: String(item.q2)
+    });
+  }
+
+  attributes.push({
+    attributeName: "Type",
+    attributeValue: "standard sp"
+  });
+
+  if (hasAttributeValue(item.q3)) {
+    attributes.push({
+      attributeName: "parameter_1",
+      attributeValue: String(item.q3)
+    });
+  }
+
+  if (hasAttributeValue(item.q4)) {
+    attributes.push({
+      attributeName: "parameter_2",
+      attributeValue: String(item.q4)
+    });
+  }
+
+  return attributes;
+}
+
 async function hydrateBatchFinancials(batchId) {
   const batch = await dbGet(
     `
@@ -605,12 +642,13 @@ function buildOrderItemsForCreate(
     shipping: row.shipping,
     weight: row.weight,
     itemNotes: mergeItemNotes(
-  row.item.item_notes,
-  buildWorkDataNotes(row)
-),
+      row.item.item_notes,
+      buildWorkDataNotes(row)
+    ),
     shipMethodName: selectedShipMethodName || null,
     ...buildShipToFields(shipAddress),
-    edocSessionId: null
+    edocSessionId: null,
+    attributes: buildOrderItemAttributes(row)
   }));
 }
 
