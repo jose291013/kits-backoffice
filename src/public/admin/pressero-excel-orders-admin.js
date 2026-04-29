@@ -717,13 +717,14 @@ function toggleSidebar() {
       <td>${i.valid_rows || 0}</td>
       <td>${i.error_rows || 0}</td>
       <td class="eo-actions">
-        <button class="eo-btn secondary" data-action="lines" data-id="${i.id}">Voir lignes</button>
-        ${
-          canBuild
-            ? `<button class="eo-btn yellow" data-action="build" data-id="${i.id}">Préparer</button>`
-            : `<button class="eo-btn secondary" disabled>Import en erreur</button>`
-        }
-      </td>
+  <button class="eo-btn secondary" data-action="lines" data-id="${i.id}">Voir lignes</button>
+  ${
+    canBuild
+      ? `<button class="eo-btn yellow" data-action="build" data-id="${i.id}">Préparer</button>`
+      : `<button class="eo-btn secondary" disabled>Import en erreur</button>`
+  }
+  <button class="eo-btn secondary" data-action="delete-import" data-id="${i.id}">Supprimer</button>
+</td>
     `;
     tbody.appendChild(tr);
   });
@@ -749,6 +750,14 @@ function toggleSidebar() {
       }
     };
   });
+
+  tbody.querySelectorAll("button[data-action='delete-import']").forEach((btn) => {
+  btn.onclick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await deleteImport(btn.dataset.id);
+  };
+});
 }
 
 async function loadPreparedImportsHistory() {
@@ -782,8 +791,9 @@ async function loadPreparedImportsHistory() {
       <td>${i.valid_rows || 0}</td>
       <td>${i.error_rows || 0}</td>
       <td class="eo-actions">
-        <button class="eo-btn secondary" data-action="history-lines" data-id="${i.id}">Voir lignes</button>
-      </td>
+  <button class="eo-btn secondary" data-action="history-lines" data-id="${i.id}">Voir lignes</button>
+  <button class="eo-btn secondary" data-action="delete-import-history" data-id="${i.id}">Supprimer</button>
+</td>
     `;
     tbody.appendChild(tr);
   });
@@ -796,6 +806,14 @@ async function loadPreparedImportsHistory() {
       showView("detail-panel");
     };
   });
+
+  tbody.querySelectorAll("button[data-action='delete-import-history']").forEach((btn) => {
+  btn.onclick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await deleteImport(btn.dataset.id);
+  };
+});
 }
 
   
@@ -880,32 +898,43 @@ async function loadPreparedImportsHistory() {
   }
 
   batches.forEach((b) => {
-    const tr = ce("tr");
-    tr.innerHTML = `
-      <td>${b.id}</td>
-      <td>${b.import_id || ""}</td>
-      <td>${b.store_code || ""}</td>
-      <td>${statusBadge(b.status)}</td>
-      <td>${b.total_lines || 0}</td>
-      <td>${money(b.total_ht)}</td>
-      <td>${money(b.total_shipping)}</td>
-      <td>${money(b.total_tax)}</td>
-      <td><strong>${money(b.total_ttc)}</strong></td>
-      <td>${Number(b.need_to_apply_approvals) === 1 ? "Oui" : "Non"}</td>
-      <td>${b.presso_order_number || ""}</td>
-      <td>${b.executed_at || ""}</td>
-      <td>${b.message || ""}</td>
-      <td class="eo-actions">
-        <button class="eo-btn secondary" data-action="items" data-id="${b.id}">Voir items</button>
-        ${
-          b.presso_order_number || String(b.status || "").toUpperCase() === "SENT"
-            ? `<button class="eo-btn secondary" disabled>Déjà envoyée</button>`
-            : `<button class="eo-btn green" data-action="send" data-id="${b.id}">Envoyer</button>`
-        }
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
+  const status = String(b.status || "").toUpperCase();
+  const hasPresseroOrder = !!b.presso_order_number || !!b.presso_order_id;
+  const isProtected = status === "SENT" || status === "PROCESSING" || hasPresseroOrder;
+  const canSend = status === "READY" && !hasPresseroOrder;
+  const canArchive = !isProtected;
+
+  const tr = ce("tr");
+  tr.innerHTML = `
+    <td>${b.id}</td>
+    <td>${b.import_id || ""}</td>
+    <td>${b.store_code || ""}</td>
+    <td>${statusBadge(b.status)}</td>
+    <td>${b.total_lines || 0}</td>
+    <td>${money(b.total_ht)}</td>
+    <td>${money(b.total_shipping)}</td>
+    <td>${money(b.total_tax)}</td>
+    <td><strong>${money(b.total_ttc)}</strong></td>
+    <td>${Number(b.need_to_apply_approvals) === 1 ? "Oui" : "Non"}</td>
+    <td>${b.presso_order_number || ""}</td>
+    <td>${b.executed_at || ""}</td>
+    <td>${b.message || ""}</td>
+    <td class="eo-actions">
+      <button class="eo-btn secondary" data-action="items" data-id="${b.id}">Voir items</button>
+      ${
+        canSend
+          ? `<button class="eo-btn green" data-action="send" data-id="${b.id}">Envoyer</button>`
+          : `<button class="eo-btn secondary" disabled>${isProtected ? "Protégée" : "Non envoyable"}</button>`
+      }
+      ${
+        canArchive
+          ? `<button class="eo-btn secondary" data-action="archive-batch" data-id="${b.id}">Retirer</button>`
+          : ``
+      }
+    </td>
+  `;
+  tbody.appendChild(tr);
+});
 
   tbody.querySelectorAll("button[data-action='items']").forEach((btn) => {
     btn.onclick = async (e) => {
@@ -928,6 +957,14 @@ async function loadPreparedImportsHistory() {
       }
     };
   });
+
+  tbody.querySelectorAll("button[data-action='archive-batch']").forEach((btn) => {
+  btn.onclick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await archiveBatch(btn.dataset.id);
+  };
+});
 }
 
 async function loadBatchesHistory() {
@@ -1011,12 +1048,91 @@ async function loadBatchesHistory() {
     box.appendChild(table);
   }
 
+  async function archiveBatch(batchId) {
+  const safeId = Number(batchId || 0);
+
+  if (!safeId) {
+    log("Batch invalide.", "error");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Voulez-vous vraiment retirer la commande préparée ${safeId} ?\n\n` +
+    `Cette action la masquera des commandes prêtes à envoyer.\n\n` +
+    `Une commande déjà envoyée à Pressero ne peut pas être retirée.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const res = await apiJson(`/backoffice/batches/${safeId}/archive`, {
+      method: "POST",
+      body: JSON.stringify({
+        reason: "Commande préparée retirée depuis le back-office Excel"
+      })
+    });
+
+    log(`Retrait batch ${safeId}: ${JSON.stringify(res)}`, res.success ? "success" : "error");
+
+    await loadImports();
+    await loadPreparedImportsHistory();
+    await loadBatches();
+    await loadBatchesHistory();
+
+    const box = qs("#eo-detail-box");
+    if (box) {
+      box.innerHTML = res.message || `Batch ${safeId} retiré.`;
+    }
+  } catch (err) {
+    log(`Retrait batch ${safeId} ERROR: ${err.message || err}`, "error");
+    window.alert(err.message || "Erreur lors du retrait du batch.");
+  }
+}
+
   async function sendBatch(batchId) {
   const res = await apiJson(`/orders/submit-batch/${batchId}`, { method: "POST" });
   log(`Batch ${batchId}: ${JSON.stringify(res)}`, res.success ? "success" : "error");
   await loadImports();
 await loadBatches();
 await loadBatchesHistory();
+}
+
+async function deleteImport(importId) {
+  const safeId = Number(importId || 0);
+
+  if (!safeId) {
+    log("Import invalide.", "error");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Voulez-vous vraiment supprimer l’import ${safeId} ?\n\n` +
+    `Cette action supprimera l’import, ses lignes et ses batchs non envoyés.\n\n` +
+    `Si une commande a déjà été envoyée à Pressero, la suppression sera bloquée.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const res = await apiJson(`/backoffice/imports/${safeId}/delete`, {
+      method: "POST"
+    });
+
+    log(`Suppression import ${safeId}: ${JSON.stringify(res)}`, res.success ? "success" : "error");
+
+    await loadImports();
+    await loadPreparedImportsHistory();
+    await loadBatches();
+    await loadBatchesHistory();
+
+    const box = qs("#eo-detail-box");
+    if (box) {
+      box.innerHTML = res.message || `Import ${safeId} supprimé.`;
+    }
+  } catch (err) {
+    log(`Suppression import ${safeId} ERROR: ${err.message || err}`, "error");
+    window.alert(err.message || "Erreur lors de la suppression de l’import.");
+  }
 }
 
   async function cleanupOrders() {
@@ -1452,7 +1568,9 @@ function renderStoreImportResults(res, mode) {
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px">
   <div class="eo-actions">
     <button class="eo-btn secondary" id="eo-btn-refresh-batches">Rafraîchir</button>
-    <button class="eo-btn yellow" id="eo-btn-cleanup-orders">Vider les tests commandes</button>
+    <!--
+<button class="eo-btn yellow" id="eo-btn-cleanup-orders">Vider les tests commandes</button>
+-->
     <button type="button" class="eo-btn green" id="eo-btn-send-all-ready">Tout envoyer</button>
   </div>
 
@@ -1616,7 +1734,8 @@ qs("#eo-btn-build-all-imports").onclick = async (e) => {
     qs("#eo-btn-refresh-imports").onclick = loadImports;
     qs("#eo-btn-refresh-imports-history").onclick = loadPreparedImportsHistory;
     qs("#eo-btn-refresh-batches").onclick = loadBatches;
-    qs("#eo-btn-cleanup-orders").onclick = cleanupOrders;
+    const cleanupBtn = qs("#eo-btn-cleanup-orders");
+if (cleanupBtn) cleanupBtn.onclick = cleanupOrders;
     qs("#eo-btn-refresh-batches-history").onclick = loadBatchesHistory;
     qs("#eo-toggle-sidebar").onclick = (e) => {
   e.preventDefault();
