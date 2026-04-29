@@ -869,6 +869,7 @@ async function loadPreparedImportsHistory() {
   tbody.innerHTML = "";
 
   const batches = data.batches || [];
+  eoActiveBatchesCache = batches;
 
   const readyToSendCount = batches.filter((b) => {
     return (
@@ -975,7 +976,7 @@ async function loadBatchesHistory() {
   tbody.innerHTML = "";
 
   const batches = data.batches || [];
-  eoActiveBatchesCache = batches;
+  
 
   batches.forEach((b) => {
     const tr = ce("tr");
@@ -1124,23 +1125,32 @@ async function loadBatchesHistory() {
 
   try {
     const res = await apiJson(`/backoffice/batches/${safeId}/archive`, {
-      method: "POST",
-      body: JSON.stringify({
-        reason: "Commande préparée retirée depuis le back-office Excel"
-      })
-    });
+  method: "POST",
+  body: JSON.stringify({
+    reason: "Commande préparée retirée depuis le back-office Excel"
+  })
+});
 
-    log(`Retrait batch ${safeId}: ${JSON.stringify(res)}`, res.success ? "success" : "error");
+if (!res.success) {
+  const msg = res.message || "Retrait impossible.";
+  log(`Retrait batch ${safeId}: ${msg}`, "error");
+  window.alert(msg);
+  return;
+}
 
-    await loadImports();
-    await loadPreparedImportsHistory();
-    await loadBatches();
-    await loadBatchesHistory();
+log(`Retrait batch ${safeId}: ${JSON.stringify(res)}`, "success");
 
-    const box = qs("#eo-detail-box");
-    if (box) {
-      box.innerHTML = res.message || `Batch ${safeId} retiré.`;
-    }
+await loadImports();
+await loadPreparedImportsHistory();
+await loadBatches();
+await loadBatchesHistory();
+
+const box = qs("#eo-detail-box");
+if (box) {
+  box.innerHTML = res.message || `Batch ${safeId} retiré.`;
+}
+
+window.alert(res.message || `Batch ${safeId} retiré.`);
   } catch (err) {
     log(`Retrait batch ${safeId} ERROR: ${err.message || err}`, "error");
     window.alert(err.message || "Erreur lors du retrait du batch.");
