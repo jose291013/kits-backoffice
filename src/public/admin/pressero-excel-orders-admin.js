@@ -2,6 +2,7 @@
   const CONFIG = window.PRESSERO_EXCEL_ORDERS_ADMIN_CONFIG || {};
   const API_BASE = CONFIG.apiBaseUrl || window.PRESSERO_EXCEL_ORDERS_API_BASE || "/api";
   const MOUNT = CONFIG.mountSelector || "#excel-orders-admin-app";
+  let eoActiveBatchesCache = [];
 
   function qs(sel, root = document) {
     return root.querySelector(sel);
@@ -974,6 +975,7 @@ async function loadBatchesHistory() {
   tbody.innerHTML = "";
 
   const batches = data.batches || [];
+  eoActiveBatchesCache = batches;
 
   batches.forEach((b) => {
     const tr = ce("tr");
@@ -1048,6 +1050,62 @@ async function loadBatchesHistory() {
     box.appendChild(table);
   }
 
+  async function archiveAllActiveBatches() {
+  const batchIds = eoActiveBatchesCache
+    .filter((b) => {
+      const status = String(b.status || "").toUpperCase();
+      const hasPresseroOrder = !!b.presso_order_number || !!b.presso_order_id;
+
+      return (
+        !hasPresseroOrder &&
+        status !== "SENT" &&
+        status !== "PROCESSING"
+      );
+    })
+    .map((b) => Number(b.id))
+    .filter(Boolean);
+
+  if (!batchIds.length) {
+    window.alert("Aucune commande non envoyée ne peut être retirée.");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Voulez-vous vraiment retirer ${batchIds.length} commande(s) non envoyée(s) ?\n\n` +
+    `Les commandes déjà envoyées à Pressero ne seront pas concernées.`
+  );
+
+  if (!confirmed) return;
+
+  const res = await apiJson("/backoffice/batches/archive-selected", {
+    method: "POST",
+    body: JSON.stringify({
+      batchIds,
+      reason: "Retrait global des commandes non envoyées depuis le back-office Excel"
+    })
+  });
+
+  if (!res.success) {
+    const msg = res.message || "Retrait impossible.";
+    log(`Retrait global: ${msg}`, "error");
+    window.alert(msg);
+    return;
+  }
+
+  log(`Retrait global commandes: ${JSON.stringify(res)}`, "success");
+
+  await loadImports();
+  await loadPreparedImportsHistory();
+  await loadBatches();
+  await loadBatchesHistory();
+
+  window.alert(
+    `${res.archived?.length || 0} commande(s) retirée(s).\n` +
+    `${res.blocked?.length || 0} commande(s) protégée(s).\n` +
+    `${res.notFound?.length || 0} introuvable(s).`
+  );
+}
+
   async function archiveBatch(batchId) {
   const safeId = Number(batchId || 0);
 
@@ -1113,26 +1171,30 @@ async function deleteImport(importId) {
 
   if (!confirmed) return;
 
-  try {
-    const res = await apiJson(`/backoffice/imports/${safeId}/delete`, {
-      method: "POST"
-    });
+  const res = await apiJson(`/backoffice/imports/${safeId}/delete`, {
+    method: "POST"
+  });
 
-    log(`Suppression import ${safeId}: ${JSON.stringify(res)}`, res.success ? "success" : "error");
-
-    await loadImports();
-    await loadPreparedImportsHistory();
-    await loadBatches();
-    await loadBatchesHistory();
-
-    const box = qs("#eo-detail-box");
-    if (box) {
-      box.innerHTML = res.message || `Import ${safeId} supprimé.`;
-    }
-  } catch (err) {
-    log(`Suppression import ${safeId} ERROR: ${err.message || err}`, "error");
-    window.alert(err.message || "Erreur lors de la suppression de l’import.");
+  if (!res.success) {
+    const msg = res.message || "Suppression impossible.";
+    log(`Suppression import ${safeId}: ${msg}`, "error");
+    window.alert(msg);
+    return;
   }
+
+  log(`Suppression import ${safeId}: ${JSON.stringify(res)}`, "success");
+
+  await loadImports();
+  await loadPreparedImportsHistory();
+  await loadBatches();
+  await loadBatchesHistory();
+
+  const box = qs("#eo-detail-box");
+  if (box) {
+    box.innerHTML = res.message || `Import ${safeId} supprimé.`;
+  }
+
+  window.alert(res.message || `Import ${safeId} supprimé.`);
 }
 
   async function cleanupOrders() {
@@ -1567,12 +1629,11 @@ function renderStoreImportResults(res, mode) {
 
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px">
   <div class="eo-actions">
-    <button class="eo-btn secondary" id="eo-btn-refresh-batches">Rafraîchir</button>
-    <!--
-<button class="eo-btn yellow" id="eo-btn-cleanup-orders">Vider les tests commandes</button>
--->
-    <button type="button" class="eo-btn green" id="eo-btn-send-all-ready">Tout envoyer</button>
-  </div>
+  <button class="eo-btn secondary" id="eo-btn-refresh-batches">Rafraîchir</button>
+  <button class="eo-btn yellow" id="eo-btn-cleanup-orders">Vider les tests commandes</button>
+  <button type="button" class="eo-btn secondary" id="eo-btn-archive-all-active">Retirer toutes les non envoyées</button>
+  <button type="button" class="eo-btn green" id="eo-btn-send-all-ready">Tout envoyer</button>
+</div>
 
   <div id="eo-batches-kpis" class="eo-actions" style="gap:10px">
     <span class="eo-badge eo-ready">HT: 0,00 €</span>
@@ -1734,9 +1795,20 @@ qs("#eo-btn-build-all-imports").onclick = async (e) => {
     qs("#eo-btn-refresh-imports").onclick = loadImports;
     qs("#eo-btn-refresh-imports-history").onclick = loadPreparedImportsHistory;
     qs("#eo-btn-refresh-batches").onclick = loadBatches;
-    const cleanupBtn = qs("#eo-btn-cleanup-orders");
+
+const cleanupBtn = qs("#eo-btn-cleanup-orders");
 if (cleanupBtn) cleanupBtn.onclick = cleanupOrders;
-    qs("#eo-btn-refresh-batches-history").onclick = loadBatchesHistory;
+
+const archiveAllBtn = qs("#eo-btn-archive-all-active");
+if (archiveAllBtn) {
+  archiveAllBtn.onclick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await archiveAllActiveBatches();
+  };
+}
+
+qs("#eo-btn-refresh-batches-history").onclick = loadBatchesHistory;
     qs("#eo-toggle-sidebar").onclick = (e) => {
   e.preventDefault();
   e.stopPropagation();
