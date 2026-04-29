@@ -678,7 +678,7 @@ function toggleSidebar() {
   tbody.innerHTML = "";
 
   const imports = data.imports || [];
-  qs("#kpi-imports").textContent = imports.length;
+  
 
   const importsToBuildCount = imports.filter((x) => {
     return (
@@ -976,6 +976,18 @@ async function loadBatchesHistory() {
   tbody.innerHTML = "";
 
   const batches = data.batches || [];
+
+  const today = new Date().toISOString().slice(0, 10);
+
+const sentTodayCount = batches.filter((b) => {
+  const executedAt = String(b.executed_at || "");
+  return executedAt.startsWith(today);
+}).length;
+
+const sentTodayKpi = qs("#kpi-imports");
+if (sentTodayKpi) {
+  sentTodayKpi.textContent = sentTodayCount;
+}
   
 
   batches.forEach((b) => {
@@ -1510,7 +1522,7 @@ function renderStoreImportResults(res, mode) {
       <main class="eo-main">
         <div class="eo-kpis">
           <div class="eo-kpi"><strong id="kpi-stores">0</strong><span>Magasins</span></div>
-          <div class="eo-kpi"><strong id="kpi-imports">0</strong><span>Imports</span></div>
+          <div class="eo-kpi"><strong id="kpi-imports">0</strong><span>Envoyées aujourd’hui</span></div>
           <div class="eo-kpi"><strong id="kpi-batches">0</strong><span>À préparer</span></div>
           <div class="eo-kpi"><strong id="kpi-ready">0</strong><span>Prêtes à envoyer</span></div>
         </div>
