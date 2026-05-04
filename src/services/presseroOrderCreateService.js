@@ -18,14 +18,22 @@ const PRESSERO_CONSUMER_ID = process.env.PRESSERO_CONSUMER_ID;
 
 let cachedToken = null;
 let cachedTokenAt = null;
+let refreshingTokenPromise = null;
 
-async function getAccessToken() {
+function resetTokenCache(reason = "unknown") {
+  console.warn(`[PRESSERO] reset token cache: ${reason}`);
+  cachedToken = null;
+  cachedTokenAt = null;
+  refreshingTokenPromise = null;
+}
+
+function isTokenFresh() {
+  if (!cachedToken || !cachedTokenAt) return false;
   const now = Date.now();
+  return now - cachedTokenAt < 45 * 60 * 1000;
+}
 
-  if (cachedToken && cachedTokenAt && (now - cachedTokenAt < 50 * 60 * 1000)) {
-    return cachedToken;
-  }
-
+async function fetchNewAccessToken() {
   const response = await axios.post(
     `${ADMIN_BASE_URL}/api/V2/Authentication`,
     {
@@ -55,47 +63,100 @@ async function getAccessToken() {
   }
 
   cachedToken = token;
-  cachedTokenAt = now;
+  cachedTokenAt = Date.now();
+
+  console.log("[PRESSERO AUTH] nouveau token obtenu");
   return token;
 }
 
-async function getHeaders() {
-  const token = await getAccessToken();
+async function getAccessToken({ forceRefresh = false } = {}) {
+  if (!forceRefresh && isTokenFresh()) {
+    return cachedToken;
+  }
+
+  if (refreshingTokenPromise) {
+    return refreshingTokenPromise;
+  }
+
+  refreshingTokenPromise = (async () => {
+    try {
+      if (forceRefresh) {
+        resetTokenCache("forceRefresh");
+      }
+      return await fetchNewAccessToken();
+    } finally {
+      refreshingTokenPromise = null;
+    }
+  })();
+
+  return refreshingTokenPromise;
+}
+
+function buildPrefixedHeaders(token, extraHeaders = {}) {
   return {
     Authorization: `Token ${token}`,
     "Content-Type": "application/json",
-    Accept: "application/json"
+    Accept: "application/json",
+    ...extraHeaders
   };
 }
 
-function getRawHeaders(token) {
+function buildRawHeaders(token, extraHeaders = {}) {
   return {
     Authorization: token,
     "Content-Type": "application/json",
-    Accept: "application/json"
+    Accept: "application/json",
+    ...extraHeaders
   };
 }
 
-async function postWithAuthRetry(url, body) {
-  const token = await getAccessToken();
+async function requestWithAuthRetry(config, label = "PRESSERO REQUEST") {
+  let token = await getAccessToken();
+
+  const execute = (tokenValue, raw = false) => {
+    const baseHeaders = raw
+      ? buildRawHeaders(tokenValue, config.headers || {})
+      : buildPrefixedHeaders(tokenValue, config.headers || {});
+
+    return axios({
+      ...config,
+      headers: baseHeaders
+    });
+  };
 
   try {
-    return await axios.post(url, body, {
-      headers: {
-        Authorization: `Token ${token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json"
-      }
-    });
+    return await execute(token, false);
   } catch (err) {
     if (err?.response?.status !== 401) {
       throw err;
     }
 
-    return axios.post(url, body, {
-      headers: getRawHeaders(token)
-    });
+    console.warn(`[${label}] 401 détecté avec header Token, refresh du token...`);
+    resetTokenCache(`${label}:401`);
+    token = await getAccessToken({ forceRefresh: true });
+
+    try {
+      return await execute(token, false);
+    } catch (err2) {
+      if (err2?.response?.status !== 401) {
+        throw err2;
+      }
+
+      console.warn(`[${label}] 401 après refresh, tentative avec header brut...`);
+      return await execute(token, true);
+    }
   }
+}
+
+async function postWithAuthRetry(url, body) {
+  return requestWithAuthRetry(
+    {
+      method: "POST",
+      url,
+      data: body
+    },
+    "ORDERS CREATE"
+  );
 }
 
 function dbGet(sql, params = []) {
@@ -147,8 +208,6 @@ function parsePriceValue(value) {
 }
 
 async function priceBatchItem(batch, item) {
-  const headers = await getHeaders();
-
   const payload = {
     Quantities: [
       Number(item.q1 || 0),
@@ -159,10 +218,13 @@ async function priceBatchItem(batch, item) {
     Options: []
   };
 
-  const response = await axios.post(
-    `${ADMIN_BASE_URL}/api/cart/${CART_SITE_DOMAIN}/product/${item.product_id}/price?userId=${encodeURIComponent(batch.presso_user_id)}`,
-    payload,
-    { headers }
+  const response = await requestWithAuthRetry(
+    {
+      method: "POST",
+      url: `${ADMIN_BASE_URL}/api/cart/${CART_SITE_DOMAIN}/product/${item.product_id}/price?userId=${encodeURIComponent(batch.presso_user_id)}`,
+      data: payload
+    },
+    "PRICE BATCH ITEM"
   );
 
   const data = response.data || {};
@@ -223,8 +285,6 @@ function buildShipToFields(address) {
 }
 
 async function estimateShippingCost(batch, shipAddress, totalWeight) {
-  const headers = await getHeaders();
-
   const payload = {
     Weight: Number(totalWeight || 0),
     Country: shipAddress?.country || "",
@@ -234,10 +294,13 @@ async function estimateShippingCost(batch, shipAddress, totalWeight) {
     District: ""
   };
 
-  const response = await axios.post(
-    `${ADMIN_BASE_URL}/api/V2/SiteShipping/${SHIPPING_SITE_DOMAIN}/Estimate`,
-    payload,
-    { headers }
+  const response = await requestWithAuthRetry(
+    {
+      method: "POST",
+      url: `${ADMIN_BASE_URL}/api/V2/SiteShipping/${SHIPPING_SITE_DOMAIN}/Estimate`,
+      data: payload
+    },
+    "SHIPPING ESTIMATE"
   );
 
   const estimates = Array.isArray(response.data) ? response.data : [];
@@ -254,18 +317,18 @@ async function estimateShippingCost(batch, shipAddress, totalWeight) {
   const wantedMethod = String(batch.ship_method_name || "").trim().toLowerCase();
 
   if (wantedMethod) {
-  selected = shippable.find((x) => {
-    const serviceName = String(x?.Estimate?.Service?.Name || "").trim().toLowerCase();
-    const serviceDescription = String(x?.Estimate?.Service?.Description || "").trim().toLowerCase();
+    selected = shippable.find((x) => {
+      const serviceName = String(x?.Estimate?.Service?.Name || "").trim().toLowerCase();
+      const serviceDescription = String(x?.Estimate?.Service?.Description || "").trim().toLowerCase();
 
-    return (
-      serviceName === wantedMethod ||
-      serviceDescription === wantedMethod ||
-      serviceName.includes(wantedMethod) ||
-      serviceDescription.includes(wantedMethod)
-    );
-  });
-}
+      return (
+        serviceName === wantedMethod ||
+        serviceDescription === wantedMethod ||
+        serviceName.includes(wantedMethod) ||
+        serviceDescription.includes(wantedMethod)
+      );
+    });
+  }
 
   if (!selected) {
     selected = shippable.reduce((min, current) => {
@@ -276,7 +339,7 @@ async function estimateShippingCost(batch, shipAddress, totalWeight) {
   }
 
   console.log("SHIPPING ESTIMATES =", JSON.stringify(estimates, null, 2));
-console.log("SELECTED SHIPPING OBJECT =", JSON.stringify(selected, null, 2));
+  console.log("SELECTED SHIPPING OBJECT =", JSON.stringify(selected, null, 2));
 
   return {
     shippingCost: Number(selected?.Estimate?.Cost || 0),
