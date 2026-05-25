@@ -8,6 +8,12 @@ const TOKEN_TTL_MS = 10 * 60 * 1000;
 const userGroupsCache = new Map();
 const USER_CACHE_TTL_MS = 5 * 60 * 1000;
 
+const PRODUCT_LOOKUP_DEBUG_ENABLED = ["1", "true", "yes", "on"].includes(
+  String(process.env.DEBUG_PRESSERO_PRODUCT_LOOKUP || "").trim().toLowerCase()
+);
+
+let productLookupCounter = 0;
+
 function buildAxiosErrorMessage(step, err) {
   const status = err?.response?.status;
   const data = err?.response?.data;
@@ -38,6 +44,73 @@ function getRawTokenHeaders(token) {
     "Accept-Language": "en-US",
     Accept: "application/json"
   };
+}
+
+function normalizeName(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeProductLookupValue(value) {
+  return String(value || "")
+    .replace(/\s*-\s*/g, " - ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function getProductSearchValue(productName) {
+  return String(productName || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getLookupContext(context = {}) {
+  return {
+    partId: context.partId || context.part_id || null,
+    componentId: context.componentId || context.component_id || context.productName || null,
+    productName: context.productName || context.product_name || null,
+    langCode: context.langCode || context.lang_code || null,
+    pressersoIdNumber: context.pressersoIdNumber || context.presserso_id_number || null,
+    kitComponentDbId: context.kitComponentDbId || context.id || null
+  };
+}
+
+function buildProductCandidates(items = []) {
+  return items.slice(0, 20).map((item, index) => ({
+    index,
+    productId: item.ProductId || null,
+    productName: item.ProductName || null,
+    normalizedProductName: normalizeProductLookupValue(item.ProductName),
+    isActive: item.IsActive ?? null
+  }));
+}
+
+function shouldLogProductLookup(reason) {
+  if (PRODUCT_LOOKUP_DEBUG_ENABLED) return true;
+
+  return [
+    "NOT_FOUND",
+    "NO_EXACT_MATCH",
+    "ERROR",
+    "PRODUCT_FOUND_WITHOUT_ID",
+    "PRODUCT_DETAILS_ERROR"
+  ].includes(reason);
+}
+
+function logProductLookup(reason, payload = {}) {
+  if (!shouldLogProductLookup(reason)) return;
+
+  const safePayload = {
+    reason,
+    at: new Date().toISOString(),
+    presseroBaseUrl: env.presseroBaseUrl || null,
+    presseroProductSiteDomain: env.presseroProductSiteDomain || null,
+    ...payload
+  };
+
+  console.log(`[PRESSERO PRODUCT LOOKUP][${reason}] ${JSON.stringify(safePayload, null, 2)}`);
 }
 
 async function authenticate() {
@@ -114,68 +187,109 @@ async function getWithAuthRetry(url) {
   }
 }
 
-async function findProductByName(productName) {
+async function findProductByName(productName, context = {}) {
+  const lookupId = ++productLookupCounter;
+  const lookupContext = getLookupContext({ ...context, productName });
+
   try {
     const url = `${env.presseroBaseUrl}/api/site/${env.presseroProductSiteDomain}/products/?pageNumber=0&pageSize=20&includeDeleted=True`;
-    const searchValue = String(productName || "")
-  .replace(/\s+/g, " ")
-  .trim();
+    const searchValue = getProductSearchValue(productName);
+    const target = normalizeProductLookupValue(productName);
 
     const body = [
-  {
-    Column: "productName",
-    Value: searchValue,
-    Operator: "contains"
-  }
-];
+      {
+        Column: "productName",
+        Value: searchValue,
+        Operator: "contains"
+      }
+    ];
+
+    logProductLookup("REQUEST", {
+      lookupId,
+      lookupContext,
+      url,
+      searchBody: body,
+      searchValue,
+      normalizedTarget: target
+    });
 
     const response = await postWithAuthRetry(url, body);
     const items = response.data?.Items || [];
 
     if (!Array.isArray(items) || items.length === 0) {
+      logProductLookup("NOT_FOUND", {
+        lookupId,
+        lookupContext,
+        url,
+        searchBody: body,
+        searchValue,
+        normalizedTarget: target,
+        responseStatus: response.status,
+        responseKeys: response.data ? Object.keys(response.data) : [],
+        totalItemsReturned: Array.isArray(items) ? items.length : null
+      });
+
       return null;
     }
 
-    const target = normalizeProductLookupValue(productName);
+    const exact = items.find(item => {
+      return normalizeProductLookupValue(item.ProductName) === target;
+    });
 
-const exact = items.find(item => {
-  return normalizeProductLookupValue(item.ProductName) === target;
-});
     if (exact) {
+      logProductLookup("EXACT_MATCH", {
+        lookupId,
+        lookupContext,
+        searchValue,
+        normalizedTarget: target,
+        itemsReturned: items.length,
+        selectedProductId: exact.ProductId || null,
+        selectedProductName: exact.ProductName || null
+      });
+
       return exact;
     }
 
-    console.log("FIND PRODUCT NO EXACT MATCH:", {
-      searched: productName,
-      candidates: items.map(item => item.ProductName)
+    logProductLookup("NO_EXACT_MATCH", {
+      lookupId,
+      lookupContext,
+      searchValue,
+      normalizedTarget: target,
+      itemsReturned: items.length,
+      selectedFallbackProductId: items[0]?.ProductId || null,
+      selectedFallbackProductName: items[0]?.ProductName || null,
+      candidates: buildProductCandidates(items)
     });
 
     return items[0];
   } catch (err) {
+    logProductLookup("ERROR", {
+      lookupId,
+      lookupContext,
+      searchedProductName: productName,
+      status: err?.response?.status || null,
+      responseData: err?.response?.data || null,
+      message: err.message
+    });
+
     throw new Error(buildAxiosErrorMessage("FIND_PRODUCT", err));
   }
 }
 
-function normalizeName(value) {
-  return String(value || "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function normalizeProductLookupValue(value) {
-  return String(value || "")
-    .replace(/\s*-\s*/g, " - ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-
-async function getProductDetails(productId) {
+async function getProductDetails(productId, context = {}) {
   try {
     const url = `${env.presseroBaseUrl}/api/site/${env.presseroProductSiteDomain}/Products/${productId}`;
     const response = await getWithAuthRetry(url);
     return response.data;
   } catch (err) {
+    logProductLookup("PRODUCT_DETAILS_ERROR", {
+      lookupContext: getLookupContext(context),
+      productId,
+      status: err?.response?.status || null,
+      responseData: err?.response?.data || null,
+      message: err.message
+    });
+
     throw new Error(buildAxiosErrorMessage("PRODUCT_DETAILS", err));
   }
 }
@@ -309,8 +423,10 @@ function extractProductImages(details) {
   };
 }
 
-async function resolveProductByName(productName) {
-  const product = await findProductByName(productName);
+async function resolveProductByName(productName, context = {}) {
+  const searchValue = getProductSearchValue(productName);
+  const product = await findProductByName(productName, context);
+  const lookupContext = getLookupContext({ ...context, productName });
 
   if (!product) {
     return {
@@ -321,13 +437,19 @@ async function resolveProductByName(productName) {
       productImageLargeUrl: null,
       productImageXlargeUrl: null,
       lastSyncStatus: "NOT_FOUND",
-      lastSyncMessage: `Produit introuvable pour ProductName="${productName}"`
+      lastSyncMessage: `Produit introuvable pour ProductName="${productName}" | site="${env.presseroProductSiteDomain}" | searchValue="${searchValue}"`
     };
   }
 
   const productId = product.ProductId || null;
 
   if (!productId) {
+    logProductLookup("PRODUCT_FOUND_WITHOUT_ID", {
+      lookupContext,
+      productName,
+      product
+    });
+
     return {
       found: false,
       productId: null,
@@ -341,7 +463,7 @@ async function resolveProductByName(productName) {
   }
 
   try {
-    const details = await getProductDetails(productId);
+    const details = await getProductDetails(productId, lookupContext);
     const images = extractProductImages(details);
 
     return {
@@ -368,8 +490,19 @@ async function resolveProductByName(productName) {
   }
 }
 
+async function resolveProductByComponent(component = {}) {
+  return resolveProductByName(component.component_id, {
+    id: component.id,
+    partId: component.part_id,
+    componentId: component.component_id,
+    productName: component.product_name,
+    langCode: component.lang_code,
+    pressersoIdNumber: component.presserso_id_number
+  });
+}
+
 async function resolveProductByComponentId(componentId) {
-  return resolveProductByName(componentId);
+  return resolveProductByName(componentId, { componentId });
 }
 
 module.exports = {
@@ -377,6 +510,7 @@ module.exports = {
   findProductByName,
   getProductDetails,
   resolveProductByName,
+  resolveProductByComponent,
   resolveProductByComponentId,
   getUserByEmail,
   getUserDetails,
