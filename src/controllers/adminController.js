@@ -66,6 +66,62 @@ async function deleteKit(req, res, next) {
   }
 }
 
+async function deleteSelectedKits(req, res, next) {
+  try {
+    const rawPartIds = Array.isArray(req.body?.partIds) ? req.body.partIds : [];
+    const partIds = [...new Set(
+      rawPartIds
+        .map(value => String(value || "").trim())
+        .filter(Boolean)
+    )];
+
+    if (!partIds.length) {
+      return res.status(400).json({
+        ok: false,
+        error: "Aucun kit sélectionné"
+      });
+    }
+
+    const results = [];
+    const summary = {
+      requested: partIds.length,
+      deleted: 0,
+      notFound: 0,
+      errors: 0
+    };
+
+    for (const partId of partIds) {
+      try {
+        const result = await kitRepository.deleteKitByPartId(partId);
+
+        if (result.deleted) {
+          summary.deleted += 1;
+          results.push({ partId, status: "DELETED" });
+        } else {
+          summary.notFound += 1;
+          results.push({ partId, status: "NOT_FOUND" });
+        }
+      } catch (error) {
+        summary.errors += 1;
+        results.push({
+          partId,
+          status: "ERROR",
+          message: error.message
+        });
+      }
+    }
+
+    res.json({
+      ok: summary.errors === 0,
+      message: `${summary.deleted} kit(s) supprimé(s), ${summary.notFound} introuvable(s), ${summary.errors} erreur(s).`,
+      summary,
+      results
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function exportExcel(req, res, next) {
   try {
     const rows = await kitRepository.getAllKitComponentsForExport();
@@ -136,6 +192,7 @@ module.exports = {
   getAllKits,
   getKitDetail,
   deleteKit,
+  deleteSelectedKits,
   resetAllKits,
   exportExcel
 };
