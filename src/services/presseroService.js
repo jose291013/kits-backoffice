@@ -61,9 +61,7 @@ function normalizeProductLookupValue(value) {
 }
 
 function getProductSearchValue(productName) {
-  return String(productName || "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return String(productName || "").trim();
 }
 
 function getLookupContext(context = {}) {
