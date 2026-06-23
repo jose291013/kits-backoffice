@@ -202,7 +202,7 @@ async function buildOrderBatches(importId) {
         : String(rawApprovalValue).trim().toLowerCase();
 
     const needToApplyApprovals =
-      ["false", "0", "no", "non", "n"].includes(normalizedApprovalValue) ? 0 : 1;
+      ["false", "faux", "0", "no", "non", "n", "f"].includes(normalizedApprovalValue) ? 0 : 1;
 
     console.log("BUILD APPROVAL DEBUG =", {
       importId,
