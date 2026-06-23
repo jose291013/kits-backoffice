@@ -38,6 +38,7 @@ router.get("/template", async (req, res) => {
     ws.columns = [
       { header: "store_code", key: "store_code", width: 16 },
       { header: "order_group", key: "order_group", width: 14 },
+      { header: "Lang", key: "lang", width: 12 },
       { header: "po_number", key: "po_number", width: 18 },
       { header: "requested_ship_date", key: "requested_ship_date", width: 18 },
       { header: "ship_method_name", key: "ship_method_name", width: 28 },
@@ -46,12 +47,14 @@ router.get("/template", async (req, res) => {
       { header: "item_ref", key: "item_ref", width: 40 },
       { header: "quantity_q1", key: "quantity_q1", width: 14 },
       { header: "job_number", key: "job_number", width: 20 },
-      { header: "item_notes", key: "item_notes", width: 34 }
+      { header: "item_notes", key: "item_notes", width: 34 },
+      { header: "need_to_apply_approvals", key: "need_to_apply_approvals", width: 26 }
     ];
 
     ws.addRow({
       store_code: "3305",
       order_group: "A",
+      lang: "FR",
       po_number: "PO-3305-001",
       requested_ship_date: "2026-04-20",
       ship_method_name: "Livraison standard",
@@ -60,7 +63,8 @@ router.get("/template", async (req, res) => {
       item_ref: "C_47302676 - ILV stic baseline - UNI",
       quantity_q1: 2,
       job_number: "JOB-3305-01",
-      item_notes: "Réassort stickers"
+      item_notes: "Réassort stickers",
+      need_to_apply_approvals: "VRAI"
     });
 
     const help = workbook.addWorksheet("Instructions");
@@ -70,10 +74,28 @@ router.get("/template", async (req, res) => {
     ];
     help.addRow({ field: "store_code", desc: "Code magasin existant dans le référentiel magasins." });
     help.addRow({ field: "order_group", desc: "Permet de regrouper plusieurs lignes dans une même commande par magasin." });
+    help.addRow({ field: "Lang", desc: "Langue à appliquer à la ligne : FR, NL ou BIL. Si vide, la langue est déduite du magasin." });
     help.addRow({ field: "line_type", desc: "Valeur attendue : COMPONENT ou KIT." });
     help.addRow({ field: "item_ref", desc: "component_id / product_name si COMPONENT, ou part_id / kit_name si KIT." });
     help.addRow({ field: "quantity_q1", desc: "Quantité de commande." });
     help.addRow({ field: "requested_ship_date", desc: "Format recommandé : YYYY-MM-DD." });
+    help.addRow({ field: "need_to_apply_approvals", desc: "VRAI pour appliquer le circuit d'approbation Pressero, FAUX pour ne pas l'appliquer. Si vide, VRAI par défaut." });
+
+    ws.getRow(1).font = { bold: true };
+    help.getRow(1).font = { bold: true };
+
+    for (let rowNumber = 2; rowNumber <= 2000; rowNumber++) {
+      ws.getCell(`C${rowNumber}`).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"FR,NL,BIL"']
+      };
+      ws.getCell(`M${rowNumber}`).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"VRAI,FAUX"']
+      };
+    }
 
     res.setHeader(
       "Content-Type",
