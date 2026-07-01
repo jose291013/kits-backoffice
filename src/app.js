@@ -49,6 +49,10 @@ app.get("/kit-ui-loader.js", (req, res) => {
   res.sendFile(path.join(kitUiPath, "loader.js"));
 });
 
+app.get("/kit-search-integration.js", (req, res) => {
+  res.sendFile(path.join(kitUiPath, "search-integration.js"));
+});
+
 app.get("/health", (req, res) => {
   res.json({ ok: true });
 });
