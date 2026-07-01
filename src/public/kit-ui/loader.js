@@ -10,6 +10,19 @@
     return null;
   }
 
+  function getPartIdFromPage(root) {
+    const directPartId = (root.getAttribute("data-partid") || "").trim();
+    if (directPartId) return directPartId;
+
+    const params = new URLSearchParams(window.location.search);
+    return (
+      params.get("partId") ||
+      params.get("partid") ||
+      params.get("kit") ||
+      ""
+    ).trim();
+  }
+
   function getEmailFromPage(root) {
     const directEmail = (root.getAttribute("data-user-email") || "").trim();
     if (directEmail && directEmail.includes("@")) {
@@ -65,7 +78,7 @@
     const scriptSrc = loaderScript ? (loaderScript.src || "") : "";
     const baseUrl = scriptSrc.replace(/\/kit-ui-loader\.js(?:\?.*)?$/, "");
 
-    const partId = (root.getAttribute("data-partid") || "").trim();
+    const partId = getPartIdFromPage(root);
     const email = getEmailFromPage(root);
 
     console.log("KIT LOADER DEBUG", {
