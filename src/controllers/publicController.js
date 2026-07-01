@@ -293,7 +293,8 @@ async function priceVisibleKitByPartId(req, res, next) {
     const { partId } = req.params;
     const email = String(req.body.email || "").trim();
     const kitQuantity = Number(req.body.kitQuantity || 1);
-    const requestedComponents = Array.isArray(req.body.components) ? req.body.components : [];
+    const hasRequestedComponents = Array.isArray(req.body.components);
+    const requestedComponents = hasRequestedComponents ? req.body.components : [];
 
     if (!email) {
       return res.status(400).json({
@@ -333,16 +334,18 @@ async function priceVisibleKitByPartId(req, res, next) {
     const items = [];
     let totalPrice = 0;
 
-    for (const component of visibleComponents) {
+    const componentsToPrice = hasRequestedComponents
+      ? visibleComponents.filter(component =>
+        requestedMap.has(String(component.component_id || "").trim())
+      )
+      : visibleComponents;
+
+    for (const component of componentsToPrice) {
       const componentId = String(component.component_id || "").trim();
 
-      let quantity;
-
-      if (requestedMap.has(componentId)) {
-        quantity = Number(requestedMap.get(componentId) || 0);
-      } else {
-        quantity = Number(component.default_component_qty || 0) * kitQuantity;
-      }
+      const quantity = requestedMap.has(componentId)
+        ? Number(requestedMap.get(componentId) || 0)
+        : Number(component.default_component_qty || 0) * kitQuantity;
 
       if (!quantity || quantity <= 0) {
         continue;
