@@ -40,8 +40,17 @@
       addToCartError: "Erreur lors de l'ajout au panier.",
 
       searchTitle: "Commande par kit",
-      searchSubtitle: "Recherchez un kit, ouvrez-le, filtrez les langues si nécessaire puis préparez la commande.",
-      searchPlaceholder: "Rechercher un kit par PartID ou nom...",
+      searchSubtitle: "Recherchez un kit ou un composant, ouvrez le kit, filtrez les langues si nécessaire puis préparez la commande.",
+      searchPanelTitle: "Recherche rapide dans les kits",
+      searchPanelHint: "Saisissez un PartID, un nom de kit, un code composant ou un nom de composant, puis cliquez sur Rechercher.",
+      searchPlaceholder: "Rechercher par kit, PartID, code composant ou nom de composant...",
+      searchButton: "Rechercher",
+      searching: "Recherche...",
+      clearSearch: "Effacer",
+      allVisibleKits: "Tous les kits visibles pour votre utilisateur",
+      searchResultsFor: "Résultats pour : {query}",
+      matchedComponents: "Composants trouvés",
+      componentSearchNote: "La recherche inclut les composants des kits.",
       partId: "PartID",
       visibleComponents: "Composants visibles",
       viewButton: "Voir",
@@ -88,8 +97,17 @@
       addToCartError: "Fout bij het toevoegen aan de winkelwagen.",
 
       searchTitle: "Bestellen per kit",
-      searchSubtitle: "Zoek een kit, open deze, filter indien nodig op taal en bereid vervolgens de bestelling voor.",
-      searchPlaceholder: "Zoek een kit op PartID of naam...",
+      searchSubtitle: "Zoek een kit of component, open de kit, filter indien nodig op taal en bereid vervolgens de bestelling voor.",
+      searchPanelTitle: "Snel zoeken in kits",
+      searchPanelHint: "Voer een PartID, kitnaam, componentcode of componentnaam in en klik vervolgens op Zoeken.",
+      searchPlaceholder: "Zoeken op kit, PartID, componentcode of componentnaam...",
+      searchButton: "Zoeken",
+      searching: "Zoeken...",
+      clearSearch: "Wissen",
+      allVisibleKits: "Alle zichtbare kits voor uw gebruiker",
+      searchResultsFor: "Resultaten voor: {query}",
+      matchedComponents: "Gevonden componenten",
+      componentSearchNote: "De zoekopdracht omvat ook de componenten van de kits.",
       partId: "PartID",
       visibleComponents: "Zichtbare componenten",
       viewButton: "Bekijken",
@@ -163,7 +181,9 @@
 
   const state = {
     loading: true,
+    searchLoading: false,
     pricingLoading: false,
+    searchInput: "",
     searchQuery: "",
     kits: [],
     selectedKit: null,
@@ -273,6 +293,39 @@
 
     const data = await fetchJson(url);
     state.kits = Array.isArray(data.kits) ? data.kits : [];
+  }
+
+  async function runKitSearch() {
+    state.searchQuery = String(state.searchInput || "").trim();
+    state.searchLoading = true;
+    render();
+
+    try {
+      await loadKitSearch();
+    } catch (err) {
+      console.error("KIT SEARCH ERROR:", err);
+      alert(err.message || t("loadingError"));
+    } finally {
+      state.searchLoading = false;
+      render();
+    }
+  }
+
+  async function clearKitSearch() {
+    state.searchInput = "";
+    state.searchQuery = "";
+    state.searchLoading = true;
+    render();
+
+    try {
+      await loadKitSearch();
+    } catch (err) {
+      console.error("KIT SEARCH ERROR:", err);
+      alert(err.message || t("loadingError"));
+    } finally {
+      state.searchLoading = false;
+      render();
+    }
   }
 
   async function loadVisibleKit(partId) {
@@ -465,6 +518,11 @@
   }
 
   function buildSearchView() {
+    const hasQuery = Boolean(String(state.searchQuery || "").trim());
+    const resultLabel = hasQuery
+      ? t("searchResultsFor", { query: state.searchQuery })
+      : t("allVisibleKits");
+
     return `
       <div class="kit-app-shell">
         <section class="kit-topbar">
@@ -474,35 +532,74 @@
           </p>
         </section>
 
-        <section class="kit-search-panel">
-          <div class="kit-search-row">
+        <section
+          class="kit-search-panel"
+          style="background:linear-gradient(135deg,#ffffff 0%,#fff8d8 100%);border:2px solid rgba(255,210,0,.9);box-shadow:0 18px 44px rgba(17,24,39,.11);">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:16px;">
+            <div>
+              <h2 style="margin:0 0 6px;font-family:Manrope,Inter,Arial,sans-serif;font-size:28px;line-height:1.08;font-weight:800;letter-spacing:-.03em;">
+                ${escapeHtml(t("searchPanelTitle"))}
+              </h2>
+              <p style="margin:0;color:#6b7280;line-height:1.55;max-width:920px;">
+                ${escapeHtml(t("searchPanelHint"))}
+              </p>
+            </div>
+            <div class="inline-note" style="font-weight:700;color:#374151;background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:8px 12px;">
+              ${escapeHtml(t("componentSearchNote"))}
+            </div>
+          </div>
+
+          <div class="kit-search-row" style="align-items:stretch;">
             <input
               id="kitSearchInput"
               class="kit-search-input"
               type="text"
               placeholder="${escapeHtml(t("searchPlaceholder"))}"
-              value="${escapeHtml(state.searchQuery)}">
+              value="${escapeHtml(state.searchInput)}"
+              autocomplete="off">
+            <button id="kitSearchButton" class="btn btn-primary" type="button" ${state.searchLoading ? "disabled" : ""}>
+              ${escapeHtml(state.searchLoading ? t("searching") : t("searchButton"))}
+            </button>
+            <button id="kitClearSearchButton" class="btn btn-secondary" type="button" ${state.searchLoading ? "disabled" : ""}>
+              ${escapeHtml(t("clearSearch"))}
+            </button>
+          </div>
+
+          <div class="kit-result-meta" style="margin-top:14px;font-weight:700;">
+            ${escapeHtml(resultLabel)} · ${state.kits.length} ${escapeHtml(state.kits.length > 1 ? "kits" : "kit")}
           </div>
 
           <div class="kit-search-results">
             ${state.kits.length
-              ? state.kits.map((kit) => `
-                <article class="kit-result-card">
-                  <div class="kit-result-title">${escapeHtml(kit.kit_name)}</div>
-                  <div class="kit-result-meta">
-                    <div><strong>${escapeHtml(t("partId"))} :</strong> ${escapeHtml(kit.part_id)}</div>
-                    <div><strong>${escapeHtml(t("visibleComponents"))} :</strong> ${kit.visibleComponentCount}</div>
-                  </div>
-                  <div class="kit-result-badges">
-                    ${(kit.availableLangs || []).map((lang) => `
-                      <span class="lang-badge">${escapeHtml(lang)}</span>
-                    `).join("")}
-                  </div>
-                  <div>
-                    <button class="btn btn-primary btn-open-kit" data-partid="${escapeHtml(kit.part_id)}">${escapeHtml(t("viewButton"))}</button>
-                  </div>
-                </article>
-              `).join("")
+              ? state.kits.map((kit) => {
+                const matches = Array.isArray(kit.matchedComponents) ? kit.matchedComponents : [];
+
+                return `
+                  <article class="kit-result-card">
+                    <div class="kit-result-title">${escapeHtml(kit.kit_name)}</div>
+                    <div class="kit-result-meta">
+                      <div><strong>${escapeHtml(t("partId"))} :</strong> ${escapeHtml(kit.part_id)}</div>
+                      <div><strong>${escapeHtml(t("visibleComponents"))} :</strong> ${kit.visibleComponentCount}</div>
+                    </div>
+                    <div class="kit-result-badges">
+                      ${(kit.availableLangs || []).map((lang) => `
+                        <span class="lang-badge">${escapeHtml(lang)}</span>
+                      `).join("")}
+                    </div>
+                    ${matches.length ? `
+                      <div class="kit-result-meta" style="background:#fff;border:1px dashed #d1d5db;border-radius:14px;padding:10px;">
+                        <strong>${escapeHtml(t("matchedComponents"))} :</strong><br>
+                        ${matches.map((component) =>
+                          `${escapeHtml(component.component_id)} - ${escapeHtml(component.product_name)}${component.lang_code ? ` (${escapeHtml(component.lang_code)})` : ""}`
+                        ).join("<br>")}
+                      </div>
+                    ` : ""}
+                    <div>
+                      <button class="btn btn-primary btn-open-kit" data-partid="${escapeHtml(kit.part_id)}">${escapeHtml(t("viewButton"))}</button>
+                    </div>
+                  </article>
+                `;
+              }).join("")
               : `<div class="kit-empty">${escapeHtml(t("noKitFound"))}</div>`
             }
           </div>
@@ -636,11 +733,26 @@
   function bindSearchEvents() {
     const searchInput = document.getElementById("kitSearchInput");
     if (searchInput) {
-      searchInput.addEventListener("input", async (e) => {
-        state.searchQuery = e.target.value || "";
-        await loadKitSearch();
-        render();
+      searchInput.addEventListener("input", (e) => {
+        state.searchInput = e.target.value || "";
       });
+
+      searchInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          runKitSearch();
+        }
+      });
+    }
+
+    const searchButton = document.getElementById("kitSearchButton");
+    if (searchButton) {
+      searchButton.addEventListener("click", runKitSearch);
+    }
+
+    const clearSearchButton = document.getElementById("kitClearSearchButton");
+    if (clearSearchButton) {
+      clearSearchButton.addEventListener("click", clearKitSearch);
     }
 
     document.querySelectorAll(".btn-open-kit").forEach((button) => {
