@@ -4,6 +4,40 @@ const { filterVisibleComponents, getVisibleLangsFromGroups } = require("../utils
 const presseroPricingService = require("../services/presseroPricingService");
 const presseroCartService = require("../services/presseroCartService");
 
+function normalizeSearchText(value) {
+  const text = String(value || "")
+    .replace(/\u00A0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+  try {
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  } catch {
+    return text;
+  }
+}
+
+function buildKitSearchText(kit) {
+  return [
+    kit.part_id,
+    kit.kit_name,
+    kit.description,
+    kit.short_description,
+    kit.notes
+  ].join(" ");
+}
+
+function buildComponentSearchText(component) {
+  return [
+    component.component_id,
+    component.product_name,
+    component.product_id,
+    component.presserso_id_number,
+    component.lang_code
+  ].join(" ");
+}
+
 async function getVisibleKitByPartId(req, res, next) {
   try {
     const { partId } = req.params;
@@ -77,7 +111,8 @@ async function getVisibleKitByPartId(req, res, next) {
 async function searchVisibleKits(req, res, next) {
   try {
     const email = String(req.query.email || "").trim();
-    const q = String(req.query.q || "").trim().toLowerCase();
+    const q = String(req.query.q || "").trim();
+    const normalizedQuery = normalizeSearchText(q);
 
     if (!email) {
       return res.status(400).json({
@@ -102,6 +137,12 @@ async function searchVisibleKits(req, res, next) {
     const kits = allKits
       .map(kit => {
         const visibleComponents = filterVisibleComponents(kit.components || [], userInfo.groups);
+        const kitMatches = !normalizedQuery || normalizeSearchText(buildKitSearchText(kit)).includes(normalizedQuery);
+        const matchedVisibleComponents = normalizedQuery
+          ? visibleComponents.filter(component =>
+            normalizeSearchText(buildComponentSearchText(component)).includes(normalizedQuery)
+          )
+          : [];
 
         return {
           id: kit.id,
@@ -114,22 +155,23 @@ async function searchVisibleKits(req, res, next) {
               .map(c => String(c.lang_code || "").trim())
               .filter(Boolean)
           )],
-          hasVisibleComponents: visibleComponents.length > 0
+          matchedComponents: matchedVisibleComponents.slice(0, 5).map(component => ({
+            component_id: component.component_id,
+            product_name: component.product_name,
+            lang_code: component.lang_code
+          })),
+          hasVisibleComponents: visibleComponents.length > 0,
+          searchMatches: kitMatches || matchedVisibleComponents.length > 0
         };
       })
-      .filter(kit => kit.hasVisibleComponents)
-      .filter(kit => {
-        if (!q) return true;
-        return (
-          String(kit.part_id || "").toLowerCase().includes(q) ||
-          String(kit.kit_name || "").toLowerCase().includes(q)
-        );
-      })
+      .filter(kit => kit.hasVisibleComponents && kit.searchMatches)
+      .map(({ hasVisibleComponents, searchMatches, ...kit }) => kit)
       .sort((a, b) => String(a.part_id).localeCompare(String(b.part_id)));
 
     res.json({
       ok: true,
       email,
+      query: q,
       userGroups: userInfo.groups,
       visibleLangs,
       count: kits.length,
