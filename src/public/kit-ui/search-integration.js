@@ -109,6 +109,10 @@
         font-family:Inter,Segoe UI,Arial,sans-serif;
         color:#111827;
       }
+      .searchPage-search-form + .kit-search-results-panel{
+        margin-top:22px;
+        margin-bottom:26px;
+      }
       .kit-search-results-header{
         display:flex;
         align-items:flex-end;
@@ -211,6 +215,15 @@
     document.head.appendChild(style);
   }
 
+  function findNativeSearchForm() {
+    return (
+      document.querySelector(".searchPage-search-form") ||
+      document.querySelector(".searchpage-search-form") ||
+      document.querySelector('form[action*="/search"]') ||
+      document.querySelector('form[action*="search"]')
+    );
+  }
+
   function findMountElement(config) {
     if (config.mountSelector) {
       const configured = document.querySelector(config.mountSelector);
@@ -248,6 +261,14 @@
     panel.id = "kitSearchResultsPanel";
     panel.className = "kit-search-results-panel";
 
+    const hasExplicitMount = Boolean(config.mountSelector);
+    const nativeSearchForm = hasExplicitMount ? null : findNativeSearchForm();
+
+    if (nativeSearchForm && nativeSearchForm.parentNode) {
+      nativeSearchForm.parentNode.insertBefore(panel, nativeSearchForm.nextSibling);
+      return panel;
+    }
+
     const mount = findMountElement(config);
     const mode = config.insertMode || "before";
 
@@ -262,6 +283,43 @@
     }
 
     return panel;
+  }
+
+  function looksLikeNativeNoResultsAlert(node) {
+    const text = String(node.textContent || "").trim().toLowerCase();
+
+    if (!text) return false;
+
+    return (
+      text.includes("aucune information") ||
+      text.includes("aucun résultat") ||
+      (text.includes("aucune") && text.includes("recherche")) ||
+      text.includes("no information") ||
+      text.includes("no result") ||
+      (text.includes("geen") && text.includes("gevonden"))
+    );
+  }
+
+  function setNativeNoResultsAlertHidden(hidden) {
+    const alerts = Array.from(document.querySelectorAll(
+      ".searchPage .alert.alert-danger, .searchPage .alert-danger, .page-content .alert.alert-danger, p.alert.alert-danger, .alert.alert-danger"
+    ));
+
+    alerts.forEach((alert) => {
+      if (!looksLikeNativeNoResultsAlert(alert)) return;
+
+      if (hidden) {
+        if (!alert.hasAttribute("data-kit-search-original-display")) {
+          alert.setAttribute("data-kit-search-original-display", alert.style.display || "");
+        }
+
+        alert.setAttribute("data-kit-search-hidden", "1");
+        alert.style.display = "none";
+      } else if (alert.getAttribute("data-kit-search-hidden") === "1") {
+        alert.style.display = alert.getAttribute("data-kit-search-original-display") || "";
+        alert.removeAttribute("data-kit-search-hidden");
+      }
+    });
   }
 
   function buildKitUrl(kit, config, baseUrl, email) {
@@ -281,13 +339,18 @@
   }
 
   function renderKits(kits, config, baseUrl, email, query) {
-    const panel = getOrCreatePanel(config);
+    const hasKitResults = kits.length > 0;
 
-    if (!kits.length) {
-      panel.remove();
+    setNativeNoResultsAlertHidden(hasKitResults);
+    setTimeout(() => setNativeNoResultsAlertHidden(hasKitResults), 150);
+
+    if (!hasKitResults) {
+      const existingPanel = document.getElementById("kitSearchResultsPanel");
+      if (existingPanel) existingPanel.remove();
       return;
     }
 
+    const panel = getOrCreatePanel(config);
     const maxResults = Number(config.maxResults || 8);
     const visibleKits = kits.slice(0, maxResults);
     const title = config.title || "Kits correspondant à votre recherche";
